@@ -13,3 +13,4 @@ staticman_key
 .wrangler/
 .dev.vars*
 !.dev.vars.example
+dist/

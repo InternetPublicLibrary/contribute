@@ -32,7 +32,8 @@ Reader on an IPL page ──► sign in (GitHub or ORCID) ──► edit page / 
 - **Nothing is published without review** — the service never commits to a default branch
   ([ADR 0003](docs/adr/0003-contributions-as-reviewed-pull-requests.md)).
 - **Authors are credited**: GitHub users as commit co-authors; ORCID users by name and ORCID iD in the PR.
-- **No passwords, no e-mail**: sessions hold only the provider, a stable id, the display name and profile URL.
+- **No passwords, no e-mail**: sessions hold only the provider, a stable id, the display name and profile URL —
+  see the [privacy note](PRIVACY.md).
 
 ## API (planned)
 
