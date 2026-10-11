@@ -11,4 +11,4 @@ Each task is one pull request that closes the listed issue.
 - [x] T7 Idempotent branch cleanup on `pull_request.closed` (#14)
 - [x] T8 Least-privilege App: permission manifest, rulesets, ADR 0004 (branches vs forks), key rotation (#13)
 - [x] T9 Legacy entry route without md5, encryption or e-mail; privacy note (#17)
-- [ ] T10 No staticman.net links; CI check (#21)
+- [x] T10 No links to the former upstream domain outside `docs/UPSTREAM-README.md`; CI check (#21)

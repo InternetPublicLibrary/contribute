@@ -8,7 +8,7 @@ const FORBIDDEN = [
   [/node-rsa|NodeRSA/, 'node-rsa encryption'],
   [/require\(["'](crypto|fs|request|request-promise)["']\)|from ["']node:(crypto|fs)["']/, 'Node built-in or request'],
   [/rest\.akismet\.com|google\.com\/recaptcha|api\.mailgun\.net/i, 'removed upstream service endpoint'],
-  [/staticman\.net/i, 'staticman.net link'],
+  [/staticman[.]net/i, 'link to the former upstream domain'],
 ];
 
 const directory = process.argv[2];

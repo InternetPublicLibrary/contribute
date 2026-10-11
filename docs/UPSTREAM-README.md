@@ -1,3 +1,6 @@
+> **Note (IPL):** this is the upstream README kept for history. Links to the former upstream domain are not
+> maintained by IPL and are left as plain text on purpose; do not visit them. Credit: https://github.com/eduardoboucas/staticman
+
 # Upstream documentation (Staticman)
 
 > Original README of [Staticman](https://github.com/eduardoboucas/staticman), kept for reference. It describes upstream behaviour, not the IPL service.
@@ -42,7 +45,7 @@ NOTE: The below steps are not required if deploying to Heroku. To deploy to Hero
   cp config.sample.json config.development.json
   ```
 
-- Edit the newly-created config file with your GitHub and/or GitLab access token, SSH private key and the port to run the server. Click [here](https://staticman.net/docs/api) for the list of available configuration parameters.
+- Edit the newly-created config file with your GitHub and/or GitLab access token, SSH private key and the port to run the server. Click here (`https://staticman.net/docs/api`, not maintained by IPL) for the list of available configuration parameters.
 
 - Start the server.
 
@@ -68,7 +71,7 @@ http://your-staticman-url/v2/connect/GITHUB-USERNAME/GITHUB-REPOSITORY
 
 Staticman will look for a config file. For the deprecated `v1` endpoints, this is a  `_config.yml` with a `staticman` property inside; for `v2` endpoints, Staticman looks for a `staticman.yml` file at the root of the repository.
 
-For a list of available configuration parameters, please refer to the [documentation page](https://staticman.net/docs/configuration).
+For a list of available configuration parameters, please refer to the documentation page (`https://staticman.net/docs/configuration`, not maintained by IPL).
 
 ## Development
 
