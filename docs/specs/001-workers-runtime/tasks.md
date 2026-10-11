@@ -4,7 +4,7 @@ Each task is one pull request that closes the listed issue.
 
 - [ ] T1 Workers foundation: TypeScript, Hono, Wrangler, Vitest in workerd, ESLint, CI, Dependabot, CodeQL, SECURITY.md (#2)
 - [ ] T2 Port repository config (`contribute.yml`) and field validation/transforms with strict tests; no assertion in `catch` (#20)
-- [ ] T3 Error model: one JSON shape, status map, GitHub failures never masked (#10)
+- [x] T3 Error model: one JSON shape, status map, GitHub failures never masked (#10)
 - [ ] T4 GitHub App auth: Web Crypto JWT, PKCS#8 check, cached installation tokens, call budget, 503 on rate limit (#18)
 - [ ] T5 Default branch from the API; per-environment config; staging guard (#19)
 - [ ] T6 Webhook: HMAC-SHA256 signature verified before parsing; event allow-list; replay guard (#5)

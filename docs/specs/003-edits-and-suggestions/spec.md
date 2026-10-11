@@ -35,3 +35,27 @@ Rules:
 
 ## Out of scope
 The editor UI on the IPL site (IPLibrary-website spec), auto-merge, moderation dashboards.
+
+## Errors
+
+Every error response has the same body (issue #10), defined in [`src/errors.ts`](../../../src/errors.ts):
+
+```json
+{ "error": { "code": "VALIDATION_FAILED", "message": "…", "details": { } }, "requestId": "…" }
+```
+
+| Status | Codes | Meaning for the IPL site |
+| --- | --- | --- |
+| 400 | `BAD_REQUEST`, `INVALID_JSON`, `UNKNOWN_FIELDS` | client bug: malformed body or unexpected keys (`details.fields`) |
+| 401 | `UNAUTHENTICATED`, `INVALID_SIGNATURE` | sign in again |
+| 403 | `FORBIDDEN`, `ORIGIN_NOT_ALLOWED` | not allowed (origin, CSRF, deny-list) |
+| 404 | `NOT_FOUND`, `CONFIG_MISSING` | unknown page, topic or route; repository has no `contribute.yml` |
+| 409 | `CONFLICT`, `STALE_SHA` | the page changed; `details` carries the current content and sha |
+| 410 | `GONE` | retired route |
+| 413 | `PAYLOAD_TOO_LARGE` | content too long |
+| 415 | `UNSUPPORTED_MEDIA_TYPE` | send `application/json` |
+| 422 | `VALIDATION_FAILED`, `CONFIG_INVALID` | fix the listed fields (`details.fields`) |
+| 429 | `RATE_LIMITED` | too many contributions; `Retry-After` header |
+| 500 | `INTERNAL` | unexpected; quote the `requestId` |
+| 502 | `GITHUB_ERROR`, `GITHUB_AUTH` | GitHub refused the request; `details.githubStatus` |
+| 503 | `GITHUB_UNAVAILABLE`, `NOT_CONFIGURED` | try later; `Retry-After` header |
