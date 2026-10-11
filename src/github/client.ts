@@ -48,8 +48,15 @@ export class GitHubApp {
   }
 
   private async send(method: string, path: string, authorization: string, body?: unknown): Promise<Response> {
+    // The URL parser resolves `..` and `%2e%2e` segments; a path that changes when parsed could reach another
+    // API endpoint with our token, so it is refused before anything is sent.
+    const url = new URL(`${API}${path}`);
+    const [rawPath = ''] = path.split('?');
+    if (!path.startsWith('/') || url.origin !== API || url.pathname !== rawPath) {
+      throw new AppError('INTERNAL', 'Refused to call GitHub with an unsafe path.', { path: rawPath });
+    }
     this.calls += 1;
-    return this.fetcher(`${API}${path}`, {
+    return this.fetcher(url.toString(), {
       method,
       headers: {
         accept: 'application/vnd.github+json',
@@ -126,5 +133,16 @@ export class GitHubApp {
 
 export const repoPath = ({ owner, repo }: RepositoryRef) => `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`;
 
-/** Encode a repository file path per segment for the contents API (keeps `/`, encodes Unicode and spaces). */
-export const contentsPath = (path: string) => path.split('/').map(encodeURIComponent).join('/');
+/**
+ * Encode a repository file path per segment for the contents API (keeps `/`, encodes Unicode and spaces).
+ * Empty, `.` and `..` segments (also percent-encoded), backslashes and control characters are refused.
+ */
+export function contentsPath(path: string): string {
+  const segments = path.split('/');
+  const unsafe = segments.some((segment) => {
+    const decoded = segment.replace(/%2e/gi, '.');
+    return segment === '' || decoded === '.' || decoded === '..' || /[\\\p{Cc}]/u.test(segment);
+  });
+  if (unsafe) throw new AppError('BAD_REQUEST', 'The file path is not a safe repository path.', { path });
+  return segments.map(encodeURIComponent).join('/');
+}

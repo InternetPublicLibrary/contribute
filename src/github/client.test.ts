@@ -2,7 +2,7 @@ import { env } from 'cloudflare:workers';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { FakeGitHub, generateAppKey } from '../test/fake-github';
 import { createAppJwt, importAppPrivateKey } from './app-jwt';
-import { GitHubApp, type RepositoryRef } from './client';
+import { contentsPath, GitHubApp, type RepositoryRef } from './client';
 import { base64ToBytes, base64ToUtf8, utf8ToBase64 } from './encoding';
 import { proposeChange } from './pull-requests';
 
@@ -159,5 +159,34 @@ describe('encoding', () => {
     const text = 'Acentuação: ç ã é — 📚\r\nfim\n';
 
     expect(base64ToUtf8(utf8ToBase64(text))).toBe(text);
+  });
+});
+
+describe('path safety', () => {
+  it.each(['../../app/installations', '_data/../../../user', '%2e%2e/secrets', '_data//x', './x', 'a\\b', 'a\u0000b'])(
+    'contentsPath refuses %j',
+    (path) => {
+      expect(() => contentsPath(path)).toThrow(expect.objectContaining({ code: 'BAD_REQUEST' }));
+    },
+  );
+
+  it('contentsPath encodes Unicode and spaces per segment', () => {
+    expect(contentsPath('_data/pt-BR/ciência de dados/sites.yaml')).toBe('_data/pt-BR/ci%C3%AAncia%20de%20dados/sites.yaml');
+  });
+
+  it('never sends a request whose path changes when parsed', async () => {
+    const fake = new FakeGitHub().withInstallation();
+    const github = new GitHubApp({ appId: '12345', privateKey: pem, kv: env.CONTRIBUTE_KV, fetch: fake.fetch });
+
+    await expect(github.request(freshRepo(), 'GET', '/repos/a/b/contents/x/%2e%2e/%2e%2e/%2e%2e/user', 'probe')).rejects.toMatchObject({ code: 'INTERNAL' });
+    expect(fake.calls.some((call) => call.path === '/user')).toBe(false);
+  });
+
+  it('refuses a change whose file path climbs out of the repository', async () => {
+    const fake = prRoutes(new FakeGitHub().withInstallation());
+
+    await expect(proposeChange(new GitHubApp({ appId: '1', privateKey: pem, kv: env.CONTRIBUTE_KV, fetch: fake.fetch }), { ...change(freshRepo()), path: '../../../user' }))
+      .rejects.toMatchObject({ code: 'BAD_REQUEST' });
+    expect(fake.calls).toEqual([]);
   });
 });

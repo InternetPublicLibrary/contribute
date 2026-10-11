@@ -28,6 +28,8 @@ export interface OpenedPullRequest {
  */
 export async function proposeChange(github: GitHubApp, change: ProposedChange): Promise<OpenedPullRequest> {
   const repo = repoPath(change.repository);
+  // Validate the file path before any call, so an unsafe path never leaves a branch behind.
+  const filePath = contentsPath(change.path);
   const base = await github.request<{ object: { sha: string } }>(
     change.repository, 'GET', `${repo}/git/ref/heads/${encodeURIComponent(change.base)}`, 'get base branch',
   );
@@ -35,7 +37,7 @@ export async function proposeChange(github: GitHubApp, change: ProposedChange): 
     ref: `refs/heads/${change.branch}`,
     sha: base.object.sha,
   });
-  await github.request(change.repository, 'PUT', `${repo}/contents/${contentsPath(change.path)}`, 'write file', {
+  await github.request(change.repository, 'PUT', `${repo}/contents/${filePath}`, 'write file', {
     message: change.message,
     content: utf8ToBase64(change.content),
     branch: change.branch,
