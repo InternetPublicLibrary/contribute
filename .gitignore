@@ -9,3 +9,7 @@ config.*.json
 coverage/
 node_modules/
 staticman_key
+# Workers
+.wrangler/
+.dev.vars*
+!.dev.vars.example
