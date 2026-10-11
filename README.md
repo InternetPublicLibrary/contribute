@@ -1,3 +1,14 @@
+# contribute — Internet Public Library
+
+Signed-in readers of the [Internet Public Library](https://ipl.better-web.org) (GitHub or ORCID) edit pages and
+suggest resources; every change becomes a pull request reviewed by code owners.
+
+**Status:** fork created 2026-10-10; implementation follows [docs/specs/ROADMAP.md](docs/specs/ROADMAP.md).
+This project is a hard fork of [Staticman](https://github.com/eduardoboucas/staticman) (MIT) — see
+[NOTICE.md](NOTICE.md). The upstream documentation below describes the original Staticman behaviour.
+
+---
+
 <img src="logo.png" width="300">
 
 # Staticman [![coverage](https://img.shields.io/badge/coverage-81%25-yellow.svg?style=flat)](https://github.com/eduardoboucas/staticman) [![Build Status](https://travis-ci.org/eduardoboucas/staticman.svg?branch=master)](https://travis-ci.org/eduardoboucas/staticman) [![JavaScript Style Guide](https://img.shields.io/badge/code_style-standard-brightgreen.svg)](https://standardjs.com)
