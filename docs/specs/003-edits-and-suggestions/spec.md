@@ -59,3 +59,18 @@ Every error response has the same body (issue #10), defined in [`src/errors.ts`]
 | 500 | `INTERNAL` | unexpected; quote the `requestId` |
 | 502 | `GITHUB_ERROR`, `GITHUB_AUTH` | GitHub refused the request; `details.githubStatus` |
 | 503 | `GITHUB_UNAVAILABLE`, `NOT_CONFIGURED` | try later; `Retry-After` header |
+
+## Content rules (issue #3)
+
+Implemented in [`src/contrib/safety.ts`](../../../src/contrib/safety.ts); violations are `422 VALIDATION_FAILED`.
+
+- **Suggestions:** `name`, `description` and `organization` are plain text — no `<tag`, no control characters other
+  than line breaks, no bidi controls; NFC-normalised and trimmed. `url` is a public `https:` address (no
+  `javascript:`, `data:`, `vbscript:`, credentials, `localhost` or IP hosts).
+- **Page edits:** only lines the edit adds or changes are judged, and `details.problems` lists `{ line, reason }`.
+  Always rejected: `<script>`, `<iframe>`, `<object>`, `<embed>`, `<style>`, `<form>` and other active tags; `on*=`
+  attributes; `javascript:` / `data:` / `vbscript:` links (also entity-encoded or split by whitespace); new Liquid
+  tags. Markdown pages may add only `<kbd>`, `<sup>`, `<sub>`, `<br>` outside code fences, and such PRs get the
+  `contains-html` label. Front matter that decides publication (`permalink`, `layout`, `redirect_from`, `redirect_to`,
+  `lang`, `published`) cannot change.
+- Template-side escaping in IPLibrary-website remains required and is tracked there.

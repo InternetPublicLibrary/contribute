@@ -1,5 +1,6 @@
 import { dump, load } from 'js-yaml';
 import { AppError } from '../errors';
+import { assertPlainText, assertResourceUrl } from './safety';
 import { isLanguage, isResourceType, type Language, type ResourceType } from './topics';
 
 /**
@@ -61,6 +62,10 @@ export function parseSuggestion(body: Record<string, unknown>): Suggestion {
   if (values.access && !(ACCESS as readonly string[]).includes(values.access)) invalid.push('access');
   if (values.language && !BCP47.test(values.language)) invalid.push('language');
   if (invalid.length) throw new AppError('VALIDATION_FAILED', 'Some fields have invalid values.', { fields: invalid });
+
+  // Issue #3: plain text and a public https link, checked before anything else sees the values.
+  assertPlainText({ name: values.name, description: values.description, organization: values.organization });
+  assertResourceUrl(values.url ?? '');
 
   const suggestion: Suggestion = {
     lang: values.lang as Language,
