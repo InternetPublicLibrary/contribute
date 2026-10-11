@@ -13,8 +13,9 @@
 
 ---
 
-> **Status:** fork created on 2026-10-10. The code is still the upstream Staticman (Express); the IPL service is being
-> built spec by spec — see the [roadmap](docs/specs/ROADMAP.md).
+> **Status:** the Workers service is being built spec by spec in `src/` — see the [roadmap](docs/specs/ROADMAP.md).
+> The upstream Staticman code (`lib/`, `controllers/`, …) stays in the tree for reference until the port reaches parity;
+> it is not part of the Worker.
 
 ## How it works
 
@@ -44,6 +45,19 @@ Defined in [spec 003](docs/specs/003-edits-and-suggestions/spec.md) — the cont
 | `POST /v1/edits` | Propose a page edit (opens a PR) |
 | `POST /v1/suggestions` | Suggest a resource for a topic (opens a PR on `_data`) |
 | `GET /v1/contributions` | The signed-in author's pull requests |
+
+## Development
+
+Node.js 22+ and npm.
+
+```bash
+npm ci
+npm run dev          # wrangler dev on http://localhost:8787
+npm run check        # lint + typecheck + tests (Vitest inside workerd)
+```
+
+Tests live next to the code (`src/**/*.test.ts`) and run in the Workers runtime through `@cloudflare/vitest-plugin`.
+CI runs the same `lint`, `typecheck` and `test` scripts on every pull request.
 
 ## Roadmap
 

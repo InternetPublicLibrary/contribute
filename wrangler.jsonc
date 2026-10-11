@@ -1,0 +1,26 @@
+// contribute — Cloudflare Workers configuration (spec 001).
+// Top level = local development and tests. Secrets are never committed: see README "Configuration".
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "ipl-contribute-dev",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-10-01",
+  "observability": { "enabled": true },
+  "vars": {
+    "ENVIRONMENT": "development"
+  },
+  "env": {
+    "staging": {
+      "name": "ipl-contribute-staging",
+      "vars": {
+        "ENVIRONMENT": "staging"
+      }
+    },
+    "production": {
+      "name": "ipl-contribute",
+      "vars": {
+        "ENVIRONMENT": "production"
+      }
+    }
+  }
+}
