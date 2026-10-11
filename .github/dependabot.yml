@@ -3,8 +3,15 @@ updates:
   - package-ecosystem: npm
     directory: /
     schedule: { interval: weekly }
+    # Minor and patch updates arrive together; each major gets its own PR so one breaking change cannot block the rest.
     groups:
-      npm: { patterns: ["*"] }
+      npm:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+    ignore:
+      # typescript-eslint supports TypeScript < 6.1 (2026-10); lift when it supports 7.
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: github-actions
     directory: /
     schedule: { interval: weekly }
