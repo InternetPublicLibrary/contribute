@@ -3,6 +3,12 @@ export interface Env {
   ENVIRONMENT: 'development' | 'staging' | 'production';
   /** KV: GitHub installation ids and tokens, caches (and sessions from spec 002). */
   CONTRIBUTE_KV: KVNamespace;
+  /** Comma-separated exact origins of the IPL sites (var). */
+  IPL_ALLOWED_ORIGINS?: string;
+  /** JSON map of role → "owner/repo" for content repositories (var). */
+  CONTENT_REPOSITORIES?: string;
+  /** ORCID registry: "sandbox" (default outside production) or "production" (var). */
+  ORCID_ENVIRONMENT?: string;
   /** GitHub App id (var). */
   GITHUB_APP_ID?: string;
   /** GitHub App private key, PKCS#8 PEM (secret). */
