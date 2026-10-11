@@ -9,6 +9,8 @@ export interface Env {
   CONTENT_REPOSITORIES?: string;
   /** ORCID registry: "sandbox" (default outside production) or "production" (var). */
   ORCID_ENVIRONMENT?: string;
+  /** "on" enables the anonymous upstream entry route outside production (var; never on in production). */
+  LEGACY_ENTRY_ROUTE?: string;
   /** GitHub App id (var). */
   GITHUB_APP_ID?: string;
   /** Secret configured on the GitHub App webhook (secret). */
