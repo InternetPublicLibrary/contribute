@@ -72,6 +72,16 @@ describe('parseSuggestion', () => {
     expect(() => parseSuggestion({ ...valid, description: 'x'.repeat(1001) })).toThrow(expect.objectContaining({ details: expect.objectContaining({ fields: ['description'] }) }));
   });
 
+  it('rejects HTML in the description (issue #3 acceptance)', () => {
+    expect(() => parseSuggestion({ ...valid, description: '<img src=x onerror=alert(1)>' })).toThrow(
+      expect.objectContaining({ code: 'VALIDATION_FAILED', status: 422, details: { fields: ['description'] } }),
+    );
+  });
+
+  it.each(['javascript:alert(1)', 'data:text/html,<script>alert(1)</script>'])('rejects the link %s (issue #3 acceptance)', (url) => {
+    expect(() => parseSuggestion({ ...valid, url })).toThrow(expect.objectContaining({ code: 'VALIDATION_FAILED', status: 422, details: { fields: ['url'] } }));
+  });
+
   it('omits empty optional fields from the entry', () => {
     expect(toEntry(parseSuggestion({ ...valid, access: '', organization: '  ' }))).toEqual({ name: valid.name, url: valid.url, description: valid.description });
   });
