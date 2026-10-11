@@ -4,8 +4,7 @@ import vitest from '@vitest/eslint-plugin';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  // Upstream Staticman code is kept for reference until it is removed; it is not part of the Worker.
-  { ignores: ['node_modules/', 'dist/', 'lib/', 'controllers/', 'test/', '*.cjs', 'index.js', 'server.js', 'config.js', 'siteConfig.js', 'src/worker-configuration.d.ts'] },
+  { ignores: ['node_modules/', 'dist/', 'src/worker-configuration.d.ts'] },
   js.configs.recommended,
   ...tseslint.configs.strict,
   { files: ['scripts/**/*.mjs'], languageOptions: { globals: globals.node } },
