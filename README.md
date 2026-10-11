@@ -59,6 +59,26 @@ npm run check        # lint + typecheck + tests (Vitest inside workerd)
 Tests live next to the code (`src/**/*.test.ts`) and run in the Workers runtime through `@cloudflare/vitest-plugin`.
 CI runs the same `lint`, `typecheck` and `test` scripts on every pull request.
 
+## Configuration
+
+| Name | Kind | Purpose |
+| --- | --- | --- |
+| `CONTRIBUTE_KV` | KV binding | GitHub installation ids and tokens (and sessions, spec 002) — one namespace per environment |
+| `GITHUB_APP_ID` | var | Id of the IPL GitHub App |
+| `GITHUB_APP_PRIVATE_KEY` | secret | The App's private key in **PKCS#8** PEM |
+
+GitHub downloads App keys as PKCS#1 (`BEGIN RSA PRIVATE KEY`), which Web Crypto cannot import. Convert once and
+store the result:
+
+```bash
+openssl pkcs8 -topk8 -nocrypt -in ipl-contribute.private-key.pem -out ipl-contribute.pkcs8.pem
+npx wrangler secret put GITHUB_APP_PRIVATE_KEY --env production < ipl-contribute.pkcs8.pem
+```
+
+The service authenticates **only** as the GitHub App; no personal or user token is ever used to write. Opening one
+pull request costs 4 GitHub API calls with warm caches (base ref, new branch, file, pull request) and 2 more on a cold
+cache (installation id, installation token, both cached in KV).
+
 ## Roadmap
 
 | Spec | Scope |

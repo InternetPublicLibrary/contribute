@@ -6,18 +6,22 @@
   "main": "src/worker.ts",
   "compatibility_date": "2026-10-01",
   "observability": { "enabled": true },
+  // Each environment needs its own namespace: `wrangler kv namespace create CONTRIBUTE_KV --env <name>`.
+  "kv_namespaces": [{ "binding": "CONTRIBUTE_KV", "id": "contribute-kv-dev" }],
   "vars": {
     "ENVIRONMENT": "development"
   },
   "env": {
     "staging": {
       "name": "ipl-contribute-staging",
+      "kv_namespaces": [{ "binding": "CONTRIBUTE_KV", "id": "REPLACE_WITH_STAGING_KV_ID" }],
       "vars": {
         "ENVIRONMENT": "staging"
       }
     },
     "production": {
       "name": "ipl-contribute",
+      "kv_namespaces": [{ "binding": "CONTRIBUTE_KV", "id": "REPLACE_WITH_PRODUCTION_KV_ID" }],
       "vars": {
         "ENVIRONMENT": "production"
       }
