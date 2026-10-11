@@ -67,18 +67,31 @@ describe('POST /v1/webhook', () => {
   it('processes a correctly signed pull_request delivery', async () => {
     const { deliver, handler } = setup();
     const id = deliveryId();
-    const response = await deliver(payload, { 'x-github-event': 'pull_request', 'x-github-delivery': id, 'x-hub-signature-256': await sign(payload) });
+    const body = JSON.stringify({ action: 'closed', number: 3 });
+    const response = await deliver(body, { 'x-github-event': 'pull_request', 'x-github-delivery': id, 'x-hub-signature-256': await sign(body) });
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ delivery: id, status: 'handled' });
-    expect(handler).toHaveBeenCalledWith({ id, event: 'pull_request', payload: { action: 'closed', number: 1 } }, expect.anything());
+    expect(handler).toHaveBeenCalledWith({ id, event: 'pull_request', payload: { action: 'closed', number: 3 } }, expect.anything());
   });
 
   it('ignores a replayed delivery id', async () => {
     const { deliver, handler } = setup();
+    const payload = JSON.stringify({ action: 'closed', number: Date.now() + 1 });
     const headers = { 'x-github-event': 'pull_request', 'x-github-delivery': deliveryId(), 'x-hub-signature-256': await sign(payload) };
     await deliver(payload, headers);
     const replay = await deliver(payload, headers);
+
+    expect(await replay.json()).toMatchObject({ status: 'duplicate' });
+    expect(handler).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignores a captured delivery replayed under a new delivery id', async () => {
+    const { deliver, handler } = setup();
+    const body = JSON.stringify({ action: 'closed', number: Date.now() });
+    const signature = await sign(body);
+    await deliver(body, { 'x-github-event': 'pull_request', 'x-github-delivery': deliveryId(), 'x-hub-signature-256': signature });
+    const replay = await deliver(body, { 'x-github-event': 'pull_request', 'x-github-delivery': deliveryId(), 'x-hub-signature-256': signature.toUpperCase().replace('SHA256=', 'sha256=') });
 
     expect(await replay.json()).toMatchObject({ status: 'duplicate' });
     expect(handler).toHaveBeenCalledTimes(1);

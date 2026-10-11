@@ -39,7 +39,8 @@ export function webhookRoute(handlers: Partial<Record<HandledEvent, WebhookHandl
     if (!secret) throw new AppError('NOT_CONFIGURED', 'GITHUB_WEBHOOK_SECRET is not set.');
 
     const body = await c.req.raw.arrayBuffer();
-    if (!(await verifySignature(secret, body, c.req.header('x-hub-signature-256') ?? null))) {
+    const signature = c.req.header('x-hub-signature-256') ?? null;
+    if (!(await verifySignature(secret, body, signature))) {
       throw new AppError('INVALID_SIGNATURE', 'The webhook signature is missing or invalid.');
     }
 
@@ -53,8 +54,13 @@ export function webhookRoute(handlers: Partial<Record<HandledEvent, WebhookHandl
 
     const id = c.req.header('x-github-delivery') ?? '';
     if (!id) throw new AppError('BAD_REQUEST', 'X-GitHub-Delivery is missing.');
-    const replayKey = `webhook:delivery:${id}`;
-    if (await c.env.CONTRIBUTE_KV.get(replayKey)) return c.json({ status: 'duplicate', delivery: id });
+    // The delivery id is not covered by the signature, so a captured delivery could be replayed under a new id;
+    // the signature (an HMAC of the exact body) is remembered too. GitHub payloads carry timestamps, so a
+    // legitimate new event never repeats a body byte for byte. KV is eventually consistent: this guard is best
+    // effort, and handlers are idempotent on their own.
+    const replayKeys = [`webhook:delivery:${id}`, `webhook:signature:${(signature ?? '').toLowerCase()}`];
+    const seen = await Promise.all(replayKeys.map((key) => c.env.CONTRIBUTE_KV.get(key)));
+    if (seen.some(Boolean)) return c.json({ status: 'duplicate', delivery: id });
 
     let payload: unknown;
     try {
@@ -66,7 +72,7 @@ export function webhookRoute(handlers: Partial<Record<HandledEvent, WebhookHandl
       throw new AppError('INVALID_JSON', 'The webhook body must be a JSON object.');
     }
 
-    await c.env.CONTRIBUTE_KV.put(replayKey, '1', { expirationTtl: DELIVERY_TTL_S });
+    await Promise.all(replayKeys.map((key) => c.env.CONTRIBUTE_KV.put(key, '1', { expirationTtl: DELIVERY_TTL_S })));
     const handler = handlers[event as HandledEvent];
     const result = handler
       ? await handler({ id, event: event as HandledEvent, payload: payload as Record<string, unknown> }, c)
