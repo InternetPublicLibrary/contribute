@@ -21,7 +21,7 @@ async function sign(body: string): Promise<string> {
 }
 
 let counter = 0;
-async function deliverClosed(fake: FakeGitHub, ref: string, options: { head?: string; base?: string; action?: string } = {}) {
+async function deliverClosed(fake: FakeGitHub, ref: string, options: { head?: string; base?: string; action?: string; body?: string } = {}) {
   const app = new Hono<{ Bindings: Env }>();
   app.onError(handleError);
   app.post('/v1/webhook', webhookRoute({ pull_request: branchCleanup(fake.fetch) }));
@@ -29,7 +29,7 @@ async function deliverClosed(fake: FakeGitHub, ref: string, options: { head?: st
   const body = JSON.stringify({
     delivered_at: `${Date.now()}-${counter}`,
     action: options.action ?? 'closed',
-    pull_request: { number: 12, merged: true, head: { ref, repo: { full_name: options.head ?? SANDBOX } }, base: { repo: { full_name: options.base ?? SANDBOX } } },
+    pull_request: { number: 12, merged: true, body: options.body ?? null, head: { ref, repo: { full_name: options.head ?? SANDBOX } }, base: { repo: { full_name: options.base ?? SANDBOX } } },
   });
   const response = await app.request(
     '/v1/webhook',
@@ -91,6 +91,16 @@ describe('branch cleanup on pull_request.closed', () => {
 
     expect(result.body).toMatchObject({ status: 'ignored', reason: 'not a configured content repository' });
     expect(fake.calls).toEqual([]);
+  });
+
+  it('frees the contributor\u2019s open-PR slot when the pull request closes', async () => {
+    const { recordContribution } = await import('./contrib/limits');
+    const identity = { provider: 'github' as const, id: '777001', login: 'x', name: 'x', profileUrl: 'https://github.com/x' };
+    await recordContribution(env.CONTRIBUTE_KV, identity, `${SANDBOX}#12`);
+    const fake = new FakeGitHub().withInstallation().on('DELETE', /\/git\/refs\/heads\//, new Response(null, { status: 204 }));
+    await deliverClosed(fake, 'contribute/x', { body: 'text\n<!-- contribute-identity:github:777001 -->' });
+
+    expect(await env.CONTRIBUTE_KV.get('quota:open:github:777001', 'json')).toEqual([]);
   });
 
   it('ignores other pull request actions', async () => {

@@ -17,6 +17,7 @@
   "env": {
     "staging": {
       "name": "ipl-contribute-staging",
+      "ratelimits": [{ "name": "IP_RATE_LIMITER", "namespace_id": "1101", "simple": { "limit": 30, "period": 60 } }],
       // Same site as the IPL pages, so the SameSite=Lax session cookie is sent with their requests (spec 002).
       "workers_dev": false,
       "routes": [{ "pattern": "contribute.staging.ipl.better-web.org", "custom_domain": true }],
@@ -30,6 +31,7 @@
     },
     "production": {
       "name": "ipl-contribute",
+      "ratelimits": [{ "name": "IP_RATE_LIMITER", "namespace_id": "1001", "simple": { "limit": 30, "period": 60 } }],
       "workers_dev": false,
       "routes": [{ "pattern": "contribute.ipl.better-web.org", "custom_domain": true }],
       "kv_namespaces": [{ "binding": "CONTRIBUTE_KV", "id": "REPLACE_WITH_PRODUCTION_KV_ID" }],
