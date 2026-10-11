@@ -64,8 +64,24 @@ CI runs the same `lint`, `typecheck` and `test` scripts on every pull request.
 | Name | Kind | Purpose |
 | --- | --- | --- |
 | `CONTRIBUTE_KV` | KV binding | GitHub installation ids and tokens (and sessions, spec 002) — one namespace per environment |
+| `IPL_ALLOWED_ORIGINS` | var | Exact `https` origins of the IPL site (comma-separated); `http://localhost` only in development |
+| `CONTENT_REPOSITORIES` | var | JSON map role → `owner/repo` (`en-US`, `pt-BR`, `website`) |
+| `ORCID_ENVIRONMENT` | var | `sandbox` (default outside production) or `production` |
 | `GITHUB_APP_ID` | var | Id of the IPL GitHub App |
 | `GITHUB_APP_PRIVATE_KEY` | secret | The App's private key in **PKCS#8** PEM |
+
+### Environments
+
+| Environment | Worker | Site origin | Repositories | ORCID |
+| --- | --- | --- | --- | --- |
+| development (`npm run dev`) | local | `http://localhost:4000` | `contribute-sandbox` | sandbox |
+| staging (`--env staging`) | `ipl-contribute-staging` | `https://staging.ipl.better-web.org` | `contribute-sandbox` | sandbox |
+| production (`--env production`) | `ipl-contribute` | `https://ipl.better-web.org` | `en-US`, `pt-BR`, `IPLibrary-website` | production |
+
+A development or staging Worker refuses to start work if any configured repository is a production one, and only
+production may use the ORCID production registry. Pull requests always target the repository's **default branch**,
+read from the GitHub API (cached for an hour) — neither requests nor `contribute.yml` choose the branch.
+Repository rules are read from `contribute.yml` on that branch (upstream's `staticman.yml` is still accepted).
 
 GitHub downloads App keys as PKCS#1 (`BEGIN RSA PRIVATE KEY`), which Web Crypto cannot import. Convert once and
 store the result:

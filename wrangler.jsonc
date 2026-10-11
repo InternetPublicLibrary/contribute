@@ -9,21 +9,30 @@
   // Each environment needs its own namespace: `wrangler kv namespace create CONTRIBUTE_KV --env <name>`.
   "kv_namespaces": [{ "binding": "CONTRIBUTE_KV", "id": "contribute-kv-dev" }],
   "vars": {
-    "ENVIRONMENT": "development"
+    "ENVIRONMENT": "development",
+    "IPL_ALLOWED_ORIGINS": "http://localhost:4000",
+    "CONTENT_REPOSITORIES": "{\"en-US\":\"InternetPublicLibrary/contribute-sandbox\",\"pt-BR\":\"InternetPublicLibrary/contribute-sandbox\",\"website\":\"InternetPublicLibrary/contribute-sandbox\"}",
+    "ORCID_ENVIRONMENT": "sandbox"
   },
   "env": {
     "staging": {
       "name": "ipl-contribute-staging",
       "kv_namespaces": [{ "binding": "CONTRIBUTE_KV", "id": "REPLACE_WITH_STAGING_KV_ID" }],
       "vars": {
-        "ENVIRONMENT": "staging"
+        "ENVIRONMENT": "staging",
+        "IPL_ALLOWED_ORIGINS": "https://staging.ipl.better-web.org",
+        "CONTENT_REPOSITORIES": "{\"en-US\":\"InternetPublicLibrary/contribute-sandbox\",\"pt-BR\":\"InternetPublicLibrary/contribute-sandbox\",\"website\":\"InternetPublicLibrary/contribute-sandbox\"}",
+        "ORCID_ENVIRONMENT": "sandbox"
       }
     },
     "production": {
       "name": "ipl-contribute",
       "kv_namespaces": [{ "binding": "CONTRIBUTE_KV", "id": "REPLACE_WITH_PRODUCTION_KV_ID" }],
       "vars": {
-        "ENVIRONMENT": "production"
+        "ENVIRONMENT": "production",
+        "IPL_ALLOWED_ORIGINS": "https://ipl.better-web.org",
+        "CONTENT_REPOSITORIES": "{\"en-US\":\"InternetPublicLibrary/en-US\",\"pt-BR\":\"InternetPublicLibrary/pt-BR\",\"website\":\"InternetPublicLibrary/IPLibrary-website\"}",
+        "ORCID_ENVIRONMENT": "production"
       }
     }
   }
