@@ -14,6 +14,8 @@ export interface ProposedChange {
   message: string;
   title: string;
   body: string;
+  /** Labels added after the pull request opens (one more call). */
+  labels?: string[];
 }
 
 export interface OpenedPullRequest {
@@ -23,8 +25,8 @@ export interface OpenedPullRequest {
 
 /**
  * Commit one file on a new branch and open a pull request — never a commit to the default branch (ADR 0003).
- * Budget with warm caches: 4 GitHub calls (base ref, new ref, contents, pull request); +2 on a cold cache
- * (installation id, installation token). Asserted in tests.
+ * Budget with warm caches: 4 GitHub calls (base ref, new ref, contents, pull request), 5 with labels; +2 on a cold
+ * cache (installation id, installation token). Asserted in tests.
  */
 export async function proposeChange(github: GitHubApp, change: ProposedChange): Promise<OpenedPullRequest> {
   const repo = repoPath(change.repository);
@@ -50,5 +52,8 @@ export async function proposeChange(github: GitHubApp, change: ProposedChange): 
     base: change.base,
     maintainer_can_modify: true,
   });
+  if (change.labels?.length) {
+    await github.request(change.repository, 'POST', `${repo}/issues/${pull.number}/labels`, 'add labels', { labels: change.labels });
+  }
   return { number: pull.number, url: pull.html_url };
 }

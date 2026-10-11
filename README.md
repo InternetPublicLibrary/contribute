@@ -47,6 +47,15 @@ Defined in [spec 003](docs/specs/003-edits-and-suggestions/spec.md) — the cont
 | `POST /v1/suggestions` | Suggest a resource for a topic (opens a PR on `_data`) |
 | `GET /v1/contributions` | The signed-in author's pull requests |
 
+## Pull requests opened by the service
+
+- **Title:** `Edit: <page title>` or `Resource suggestion: <name>`, one line, at most 120 characters.
+- **Labels:** `contribution`, `edit` or `suggestion`, `lang:en-US` / `lang:pt-BR`, `topic:<category>` for suggestions and
+  `contains-html` when an edit adds inline HTML. GitHub creates a label the first time it is used, so content
+  repositories need no setup; maintainers can recolour or describe them afterwards. Labelling needs the App's
+  *Pull requests: write* permission, already in the [manifest](docs/github/app-manifest.json).
+- **Body:** see spec 003, "Pull request body".
+
 ## Development
 
 Node.js 22+ and npm.
