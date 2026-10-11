@@ -1,0 +1,17 @@
+{
+  "name": "IPL contribute",
+  "url": "https://github.com/InternetPublicLibrary/contribute",
+  "description": "Opens reviewed pull requests for signed-in readers of the Internet Public Library.",
+  "public": false,
+  "hook_attributes": {
+    "url": "https://contribute.ipl.better-web.org/v1/webhook",
+    "active": true
+  },
+  "redirect_url": "https://contribute.ipl.better-web.org/",
+  "default_permissions": {
+    "contents": "write",
+    "pull_requests": "write",
+    "metadata": "read"
+  },
+  "default_events": ["pull_request", "installation"]
+}
