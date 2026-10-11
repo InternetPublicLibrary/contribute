@@ -24,6 +24,22 @@ export function singleLine(value: string, maxLength = 200): string {
   return cleaned.length > maxLength ? `${cleaned.slice(0, maxLength - 1)}…` : cleaned;
 }
 
+const JOINER = '\u2060';
+
+/**
+ * Text that GitHub reads in titles and commit messages: a word joiner breaks @mentions, #123 / GH-123 / owner/repo#123
+ * references, closing keywords and URLs, so reader text can neither notify people nor close or cross-link issues.
+ */
+export function neutralizeGitHubText(value: string): string {
+  return value
+    .replace(/@/g, `@${JOINER}`)
+    .replace(/#(?=\d)/g, `#${JOINER}`)
+    .replace(/\b(GH)-(?=\d)/gi, `$1-${JOINER}`)
+    .replace(/:\/\//g, `:${JOINER}//`)
+    .replace(/\bwww\./gi, (match) => `${match.slice(0, 3)}${JOINER}.`)
+    .replace(/\b(close[sd]?|fix(?:e[sd])?|resolve[sd]?)\b/gi, (word) => `${word.slice(0, 1)}${JOINER}${word.slice(1)}`);
+}
+
 const pad = (value: number, length = 2) => String(value).padStart(length, '0');
 
 /**

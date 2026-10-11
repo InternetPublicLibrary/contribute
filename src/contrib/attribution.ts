@@ -1,5 +1,5 @@
 import type { Identity } from '../auth/identity';
-import { singleLine } from '../text';
+import { neutralizeGitHubText, singleLine } from '../text';
 
 /**
  * Credit built only from the verified session identity (issue #16, ADR 0003). The commit author is the App; people
@@ -27,7 +27,7 @@ export function coAuthorTrailer(identity: Identity): string {
 
 /** Commit message: a one-line subject (≤ 72 characters), a blank line and exactly one trailer. */
 export function commitMessage(subject: string, identity: Identity): string {
-  return `${singleLine(subject, 72)}\n\n${coAuthorTrailer(identity)}\n`;
+  return `${neutralizeGitHubText(singleLine(subject, 72))}\n\n${coAuthorTrailer(identity)}\n`;
 }
 
 /** Markdown credit for the PR body: name and profile link; GitHub logins are linked, not @mentioned. */

@@ -91,8 +91,28 @@ export async function readJsonObject(request: Request, maxBytes = MAX_BODY_BYTES
   }
   const tooLarge = () => new AppError('PAYLOAD_TOO_LARGE', `The request body is larger than ${Math.round(maxBytes / 1024)} KB.`);
   if (Number(request.headers.get('content-length') ?? 0) > maxBytes) throw tooLarge();
-  const bytes = new Uint8Array(await request.arrayBuffer());
-  if (bytes.length > maxBytes) throw tooLarge();
+  // Read as a stream and stop as soon as the limit is passed, whatever Content-Length claimed.
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  if (request.body) {
+    const reader = request.body.getReader();
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > maxBytes) {
+        await reader.cancel().catch(() => undefined);
+        throw tooLarge();
+      }
+      chunks.push(value);
+    }
+  }
+  const bytes = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
   let value: unknown;
   try {
     value = JSON.parse(new TextDecoder().decode(bytes));

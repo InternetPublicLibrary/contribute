@@ -115,7 +115,7 @@ describe('POST /v1/edits', () => {
     const response = await post(fake, '/v1/edits', edit(proposed), session);
 
     expect(response.status).toBe(201);
-    expect(await response.json()).toEqual({ pullRequest: { number: 12, url: `https://github.com/${SANDBOX}/pull/12` } });
+    expect(await response.json()).toEqual({ pullRequest: { number: 12, url: `https://github.com/${SANDBOX}/pull/12`, labelled: true } });
     expect(base64ToUtf8(put(fake)?.content ?? '')).toBe(proposed);
     expect(put(fake)).toMatchObject({ sha: SHA, branch: expect.stringMatching(/^contribute\//) });
     expect(put(fake)?.message).toBe('Edit sobre.html\n\nCo-authored-by: The Octocat <583231+octocat@users.noreply.github.com>\n');
@@ -250,8 +250,11 @@ describe('GET /v1/contributions', () => {
     const session = await signedIn();
     const fake = github().on('GET', /^\/search\/issues$/, {
       items: [
-        { number: 12, title: 'Edit: Sobre', html_url: 'https://github.com/x/pull/12', state: 'closed', repository_url: `https://api.github.com/repos/${SANDBOX}`, pull_request: { merged_at: '2026-10-11T00:00:00Z' } },
-        { number: 13, title: 'Resource suggestion: K', html_url: 'https://github.com/x/pull/13', state: 'open', repository_url: `https://api.github.com/repos/${SANDBOX}`, pull_request: { merged_at: null } },
+        { number: 12, title: 'Edit: Sobre', body: 'a\n<!-- contribute-identity:github:583231 -->', html_url: 'https://github.com/x/pull/12', state: 'closed', repository_url: `https://api.github.com/repos/${SANDBOX}`, pull_request: { merged_at: '2026-10-11T00:00:00Z' } },
+        { number: 13, title: 'Resource suggestion: K', body: 'b\n<!-- contribute-identity:github:583231 -->\n', html_url: 'https://github.com/x/pull/13', state: 'open', repository_url: `https://api.github.com/repos/${SANDBOX}`, pull_request: { merged_at: null } },
+        // Someone else's PR whose summary quotes the marker words: GitHub search finds it, the route must not list it.
+        { number: 14, title: 'Spoof', body: '> contribute-identity:github:583231\n<!-- contribute-identity:github:666 -->', html_url: 'https://github.com/x/pull/14', state: 'open', repository_url: `https://api.github.com/repos/${SANDBOX}`, pull_request: { merged_at: null } },
+        { number: 15, title: 'Spoof 2', body: '> &lt;!-- contribute-identity:github:583231 --&gt;', html_url: 'https://github.com/x/pull/15', state: 'open', repository_url: `https://api.github.com/repos/${SANDBOX}`, pull_request: { merged_at: null } },
       ],
     });
     const response = await request(fake, '/v1/contributions', { headers: session.headers });

@@ -60,8 +60,10 @@ Defined in [spec 003](docs/specs/003-edits-and-suggestions/spec.md) — the cont
 
 Writes need a signed-in session, an IPL origin and the CSRF token. Before any GitHub call, each identity is checked
 against a deny-list and two caps (20 contributions a day, 5 open at once → `429` with `Retry-After`); bodies are capped
-(edits 272 KB, suggestions 16 KB → `413`); a per-IP limit protects sign-in and writes. The open-PR slot is freed by the
-webhook when the pull request closes. To block an account (maintainers):
+(edits 272 KB, suggestions 16 KB → `413`); a per-IP limit protects sign-in and writes, and link checks for suggestions are capped at 50 a day per identity. The
+daily slot is reserved before GitHub is called and given back if the contribution fails; the open-PR slot is freed by
+the webhook when the pull request closes. KV has no atomic counters, so parallel requests can exceed a cap by a few
+(bounded by the per-IP limit). To block an account (maintainers):
 
 ```bash
 npx wrangler kv key put --binding CONTRIBUTE_KV --env production "deny:github:<numeric id>" "reason"   # or deny:orcid:<iD>

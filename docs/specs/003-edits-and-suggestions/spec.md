@@ -15,7 +15,7 @@ All routes require a session (002) and an IPL origin; responses are JSON.
 | `GET /v1/source?url=<IPL page URL>` | — | `{ repository, path, branch, content, sha }` of the page's source file |
 | `POST /v1/edits` | `{ url, content, sha, summary }` | opens a PR replacing the file; `{ pullRequest: { number, url } }` |
 | `POST /v1/suggestions` | `{ lang, topicPath, type, name, url, description, access? }` | opens a PR appending to `_data/<lang>/<category>/<subcategory>/<type>.yaml`; `{ pullRequest }` |
-| `GET /v1/contributions` | — | the signed-in author's open/merged PRs |
+| `GET /v1/contributions` | — | the signed-in author's PRs (`open`, `closed` or `merged`) |
 
 Rules:
 1. Page → source mapping: `en-US`/`pt-BR` content repositories by URL prefix; generated pages map to
