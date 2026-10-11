@@ -95,6 +95,9 @@ openssl pkcs8 -topk8 -nocrypt -in ipl-contribute.private-key.pem -out ipl-contri
 npx wrangler secret put GITHUB_APP_PRIVATE_KEY --env production < ipl-contribute.pkcs8.pem
 ```
 
+App permissions, installation, the default-branch ruleset and **private key rotation** are documented in
+[docs/github/app.md](docs/github/app.md) ([ADR 0004](docs/adr/0004-branches-in-content-repositories.md)).
+
 The service authenticates **only** as the GitHub App; no personal or user token is ever used to write. Opening one
 pull request costs 4 GitHub API calls with warm caches (base ref, new branch, file, pull request) and 2 more on a cold
 cache (installation id, installation token, both cached in KV).
