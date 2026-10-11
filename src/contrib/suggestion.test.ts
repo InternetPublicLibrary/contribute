@@ -114,6 +114,14 @@ describe('appendEntry', () => {
     expect(websiteValidator(text)).toEqual([]);
   });
 
+  it('keeps real entries whose host only contains "example.com"', () => {
+    const existing = '- name: Counter\n  url: https://counterexample.com/x\n  description: Real.\n- name: Community\n  url: https://example.community/\n  description: Real.\n';
+    const text = appendEntry(existing, entry);
+
+    expect(text.startsWith(existing.trimEnd())).toBe(true);
+    expect(load(text)).toHaveLength(3);
+  });
+
   it('rewrites an empty list', () => {
     expect(load(appendEntry('# Not applicable yet\n[]\n', entry))).toEqual([entry]);
   });

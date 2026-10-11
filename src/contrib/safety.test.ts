@@ -113,6 +113,27 @@ describe('scanPageEdit', () => {
     ]);
   });
 
+  it.each(['JavaScript: The Good Parts', 'Open data: portals and catalogs', 'Metadata: a primer', 'Aprenda JavaScript: guia'])(
+    'accepts the prose %j',
+    (text) => {
+      expect(() => scanPageEdit(original, page(`# Sobre\n\n${text}`), 'markdown')).not.toThrow();
+    },
+  );
+
+  it.each(['[x]: javascript:alert(1)', '<a href="javascript:alert(1)">x</a>', '<javascript:alert(1)>'])('rejects the script URL in %j', (text) => {
+    expect(problems(() => scanPageEdit(original, page(`# Sobre\n\n${text}`), 'html'))).toContainEqual({ line: 8, reason: 'script or data URL' });
+  });
+
+  it('finds an event handler in a tag split across lines', () => {
+    expect(problems(() => scanPageEdit(original, page('# Sobre\n\n<kbd\nonclick=alert(1)>x</kbd>'), 'markdown'))).toContainEqual({ line: 8, reason: 'event handler attribute' });
+    const html = page('<div class="hero">\n</div>');
+    expect(problems(() => scanPageEdit(html, page('<div class="hero"\n  onmouseover="steal()">\n</div>'), 'html'))).toContainEqual({ line: 6, reason: 'event handler attribute' });
+  });
+
+  it('does not crash on numeric entities outside Unicode', () => {
+    expect(() => scanPageEdit(original, page('# Sobre\n\n&#x110000; &#99999999; texto'), 'markdown')).not.toThrow();
+  });
+
   it('allows changing the title', () => {
     expect(() => scanPageEdit(original, page('# Sobre\n\nA IPL é uma biblioteca.', 'layout: info\ntitle: Sobre a IPL\npermalink: /pt-BR/sobre/'), 'markdown')).not.toThrow();
   });

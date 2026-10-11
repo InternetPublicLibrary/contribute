@@ -41,4 +41,11 @@ src/auth/
 
 ## Risks
 
+- Workers KV is eventually consistent: a deleted session or consumed `oauth:<state>` can still be read at other
+  locations for up to about a minute. The OAuth case is covered by the state cookie and the provider's single-use code;
+  a logged-out session may survive that long elsewhere. Acceptable for this service; revisit with a Durable Object if
+  sessions ever authorise more than opening reviewed pull requests.
+- `/v1/auth/:provider/start` writes to KV for every call; a coarse per-IP rate limit (Workers Rate Limiting or a WAF
+  rule) is part of spec 003 T8 (#6).
+
 - ORCID's PKCE support must be confirmed on the sandbox; the flow keeps the client secret as well.

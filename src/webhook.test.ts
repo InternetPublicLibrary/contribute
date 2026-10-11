@@ -128,3 +128,25 @@ describe('POST /v1/webhook', () => {
     expect(handler).not.toHaveBeenCalled();
   });
 });
+
+describe('redelivery after a failure', () => {
+  it('processes GitHub’s retry of a delivery whose handler failed', async () => {
+    let attempts = 0;
+    const handler = vi.fn<WebhookHandler>(async () => {
+      attempts += 1;
+      if (attempts === 1) throw new Error('GitHub was down');
+      return { status: 'handled' };
+    });
+    const app = new Hono<{ Bindings: Env }>();
+    app.onError(handleError);
+    app.post('/v1/webhook', webhookRoute({ pull_request: handler }));
+    const body = JSON.stringify({ action: 'closed', number: Date.now() + 7 });
+    const headers = { 'content-type': 'application/json', 'x-github-event': 'pull_request', 'x-github-delivery': deliveryId(), 'x-hub-signature-256': await sign(body) };
+    const deliver = () => app.request('/v1/webhook', { method: 'POST', body, headers }, { ...env, GITHUB_WEBHOOK_SECRET: SECRET });
+
+    expect((await deliver()).status).toBe(500);
+    const retry = await deliver();
+    expect(await retry.json()).toMatchObject({ status: 'handled' });
+    expect(await (await deliver()).json()).toMatchObject({ status: 'duplicate' });
+  });
+});

@@ -47,10 +47,13 @@ const DANGEROUS_TAGS = ['script', 'iframe', 'object', 'embed', 'style', 'form', 
 /** Front matter that decides where and how the page is published. */
 export const PROTECTED_FRONT_MATTER = ['permalink', 'layout', 'redirect_from', 'redirect_to', 'lang', 'published'];
 
+/** A numeric entity outside Unicode is left as written (fromCodePoint would throw). */
+const codePoint = (match: string, value: number) => (Number.isInteger(value) && value >= 0 && value <= 0x10ffff ? String.fromCodePoint(value) : match);
+
 function decodeEntities(text: string): string {
   return text
-    .replace(/&#x([0-9a-f]+);?/gi, (_m, hex: string) => String.fromCodePoint(parseInt(hex, 16)))
-    .replace(/&#(\d+);?/g, (_m, dec: string) => String.fromCodePoint(Number(dec)))
+    .replace(/&#x([0-9a-f]+);?/gi, (match, hex: string) => codePoint(match, parseInt(hex, 16)))
+    .replace(/&#(\d+);?/g, (match, dec: string) => codePoint(match, Number(dec)))
     .replace(/&colon;/gi, ':')
     .replace(/&tab;|&newline;/gi, '');
 }
@@ -99,10 +102,28 @@ export function scanPageEdit(original: string, proposed: string, kind: 'markdown
     } else if (inFence) fences.add(index + 1);
   });
 
-  for (const { line, text } of addedLines(original, proposed)) {
+  const added = addedLines(original, proposed);
+  const addedNumbers = new Set(added.map(({ line }) => line));
+
+  // Event handlers are found per tag over the whole text, so a tag split across lines cannot hide one.
+  const lineAt = (offset: number) => proposed.slice(0, offset).split(/\r?\n/).length;
+  for (const tag of proposed.matchAll(/<\s*[A-Za-z][\w-]*\b[^>]*>/g)) {
+    const start = tag.index;
+    const handler = /\bon[a-z]+\s*=/i.exec(decodeEntities(tag[0]));
+    if (!handler) continue;
+    const first = lineAt(start);
+    const last = lineAt(start + tag[0].length);
+    const touched = Array.from({ length: last - first + 1 }, (_v, index) => first + index).filter((line) => addedNumbers.has(line));
+    if (touched.length) problems.push({ line: touched[0] ?? first, reason: 'event handler attribute' });
+  }
+
+  for (const { line, text } of added) {
     const decoded = decodeEntities(text);
-    if (/\bon[a-z]+\s*=/i.test(decoded) && /</.test(decoded)) problems.push({ line, reason: 'event handler attribute' });
-    if (/(?:javascript|vbscript|data)\s*:/i.test(decoded.replace(/\s+/g, ''))) problems.push({ line, reason: 'script or data URL' });
+    // Only where a URL is expected (Markdown link or definition, HTML URL attribute, autolink), so prose such as
+    // "JavaScript: The Good Parts" or "Open data: portals" is fine.
+    if (/(?:\]\(|\]:|(?:href|src|action|formaction|xlink:href|poster|background)=|<)["']?(?:javascript|vbscript|data):/i.test(decoded.replace(/\s+/g, ''))) {
+      problems.push({ line, reason: 'script or data URL' });
+    }
     if (/\{%|\{\{/.test(text)) problems.push({ line, reason: 'Liquid tag' });
 
     const tags = [...decoded.matchAll(/<\s*\/?\s*([A-Za-z][A-Za-z0-9-]*)/g)].map((match) => (match[1] ?? '').toLowerCase());

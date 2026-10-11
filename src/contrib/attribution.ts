@@ -32,7 +32,13 @@ export function commitMessage(subject: string, identity: Identity): string {
 
 /** Markdown credit for the PR body: name and profile link; GitHub logins are linked, not @mentioned. */
 export function authorCredit(identity: Identity): string {
-  const name = creditName(identity).replace(/[[\]()*_`\\|#!~]/g, '\\$&');
+  // Escape Markdown, and break `@` and `://` with a word joiner so a display name can neither mention people nor
+  // become a link.
+  const name = creditName(identity)
+    .replace(/[[\]()*_`\\|#!~<>]/g, '\\$&')
+    .replace(/@/g, '@\u2060')
+    .replace(/:\/\//g, ':\u2060//')
+    .replace(/\bwww\./gi, 'www\u2060.');
   if (identity.provider === 'github') return `[${name}](https://github.com/${identity.login ?? ''}) (GitHub)`;
   return `${name} — ORCID iD [${identity.id}](https://orcid.org/${identity.id})`;
 }

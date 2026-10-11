@@ -72,11 +72,13 @@ export function webhookRoute(handlers: Partial<Record<HandledEvent, WebhookHandl
       throw new AppError('INVALID_JSON', 'The webhook body must be a JSON object.');
     }
 
-    await Promise.all(replayKeys.map((key) => c.env.CONTRIBUTE_KV.put(key, '1', { expirationTtl: DELIVERY_TTL_S })));
     const handler = handlers[event as HandledEvent];
     const result = handler
       ? await handler({ id, event: event as HandledEvent, payload: payload as Record<string, unknown> }, c)
       : { status: 'ignored' };
+    // Remembered only after the handler succeeded: if it throws, GitHub's retry or "Redeliver" (same id and body)
+    // must be processed, not dismissed as a duplicate.
+    await Promise.all(replayKeys.map((key) => c.env.CONTRIBUTE_KV.put(key, '1', { expirationTtl: DELIVERY_TTL_S })));
     log('info', c, { webhook: event, delivery: id, ...result });
     return c.json({ delivery: id, ...result });
   };

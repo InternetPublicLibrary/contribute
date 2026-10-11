@@ -58,6 +58,14 @@ describe('authorCredit', () => {
   });
 
   it('escapes Markdown in names', () => {
-    expect(authorCredit({ ...github, name: '[click](https://evil.example)' })).toBe('[\\[click\\]\\(https://evil.example\\)](https://github.com/octocat) (GitHub)');
+    expect(authorCredit({ ...github, name: '[click](https://evil.example)' })).toBe('[\\[click\\]\\(https:\u2060//evil.example\\)](https://github.com/octocat) (GitHub)');
+  });
+
+  it('cannot @mention people or autolink through the display name', () => {
+    const credit = authorCredit({ ...github, name: '@maintainer1 @maintainer2 www.evil.example' });
+
+    expect(credit).not.toMatch(/@[A-Za-z]/);
+    expect(credit).not.toMatch(/www\.evil/);
+    expect(authorCredit({ ...orcid, name: '@octocat' })).not.toMatch(/@[A-Za-z]/);
   });
 });
