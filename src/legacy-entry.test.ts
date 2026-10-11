@@ -127,6 +127,6 @@ describe('retired upstream routes', () => {
   });
 
   it('does not shadow the new /v1 API', async () => {
-    expect((await worker.request('/v1/auth/github/start', {}, env)).status).toBe(404);
+    expect((await worker.request('/v1/auth/github/start', {}, env)).status).not.toBe(410);
   });
 });

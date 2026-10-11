@@ -35,13 +35,13 @@ Reader on an IPL page ──► sign in (GitHub or ORCID) ──► edit page / 
 - **No passwords, no e-mail**: sessions hold only the provider, a stable id, the display name and profile URL —
   see the [privacy note](PRIVACY.md).
 
-## API (planned)
+## API
 
 Defined in [spec 003](docs/specs/003-edits-and-suggestions/spec.md) — the contract consumed by the IPL site:
 
 | Route | Purpose |
 | --- | --- |
-| `GET /v1/auth/:provider/start` · `/callback` · `GET /v1/session` · `POST /v1/auth/logout` | Sign-in with GitHub or ORCID ([spec 002](docs/specs/002-sign-in/spec.md)) |
+| `GET /v1/auth/:provider/start?return_to=` · `/callback` · `GET /v1/session` · `POST /v1/auth/logout` | Sign-in with GitHub or ORCID ([spec 002](docs/specs/002-sign-in/spec.md)) — available |
 | `GET /v1/source?url=` | Source file of an IPL page |
 | `POST /v1/edits` | Propose a page edit (opens a PR) |
 | `POST /v1/suggestions` | Suggest a resource for a topic (opens a PR on `_data`) |
@@ -70,6 +70,8 @@ CI runs the same `lint`, `typecheck` and `test` scripts on every pull request.
 | `ORCID_ENVIRONMENT` | var | `sandbox` (default outside production) or `production` |
 | `GITHUB_APP_ID` | var | Id of the IPL GitHub App |
 | `GITHUB_APP_PRIVATE_KEY` | secret | The App's private key in **PKCS#8** PEM |
+| `GITHUB_OAUTH_CLIENT_ID`, `GITHUB_OAUTH_CLIENT_SECRET` | secrets | GitHub **OAuth App** for sign-in only (scope `read:user`); callback `https://<service>/v1/auth/github/callback` |
+| `ORCID_CLIENT_ID`, `ORCID_CLIENT_SECRET` | secrets | ORCID API client for the environment's registry (sandbox or production); callback `https://<service>/v1/auth/orcid/callback` |
 | `GITHUB_WEBHOOK_SECRET` | secret | The App's webhook secret; `POST /v1/webhook` answers 503 without it and 401 to any delivery whose `X-Hub-Signature-256` does not match |
 
 For local development copy `.dev.vars.example` to `.dev.vars` (git-ignored). Configure the App webhook with content
