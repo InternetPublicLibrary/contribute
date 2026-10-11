@@ -8,5 +8,5 @@ Each task is one pull request that closes the listed issue.
 - [x] T4 Attribution from the session identity only (#16)
 - [x] T5 Safe pull request bodies (#8)
 - [x] T6 Titles and labels by type, language and topic (#9)
-- [ ] T7 Routes: source, edits with optimistic concurrency, suggestions, contributions (#12)
+- [x] T7 Routes: source, edits with optimistic concurrency, suggestions, contributions (#12)
 - [ ] T8 Abuse limits: sessions required, per-identity limits, size limits, deny-list (#6)

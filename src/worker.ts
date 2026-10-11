@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import type { Env } from './env';
 import { authRoutes } from './auth/routes';
+import { contributionRoutes } from './contrib/routes';
 import { AppError, handleError, handleNotFound } from './errors';
 import { branchCleanup } from './branch-cleanup';
 import { legacyEntryRoute } from './legacy-entry';
@@ -28,6 +29,7 @@ for (const prefix of ['/v1/entry', '/v1/connect', '/v2/entry', '/v2/connect', '/
   app.all(`${prefix}/*`, retired);
 }
 app.route('/v1', authRoutes());
+app.route('/v1', contributionRoutes());
 app.post('/v1/webhook', webhookRoute({ pull_request: branchCleanup() }));
 
 export default app;
