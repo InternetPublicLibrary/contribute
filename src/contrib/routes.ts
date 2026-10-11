@@ -4,6 +4,7 @@ import { assertWriteAllowed, requireSession, type Session } from '../auth/sessio
 import { loadSettings, type Settings } from '../config/environment';
 import type { Env } from '../env';
 import { AppError, readJsonObject } from '../errors';
+import { assertContributionAllowed, assertIpAllowed, recordContribution } from './limits';
 import { type GitHubApp, gitHubAppFromEnv, type RepositoryRef } from '../github/client';
 import { proposeChange } from '../github/pull-requests';
 import { defaultBranch, readFile, type RepositoryFile } from '../github/repository';
@@ -25,7 +26,10 @@ export interface ContributionDeps {
 }
 
 type AppContext = Context<{ Bindings: Env }>;
-export const MAX_EDIT_BYTES = 512 * 1024;
+export const MAX_EDIT_BYTES = 256 * 1024;
+/** Edit bodies carry the whole page; suggestions are small. */
+const MAX_EDIT_BODY = MAX_EDIT_BYTES + 16 * 1024;
+const MAX_SUGGESTION_BODY = 16 * 1024;
 const SHA = /^[0-9a-f]{40}$/;
 
 const repoName = ({ owner, repo }: RepositoryRef) => `${owner}/${repo}`;
@@ -65,9 +69,12 @@ export function matchLineEndings(original: string, proposed: string): string {
   return original.includes('\r\n') ? text.replace(/\n/g, '\r\n') : text;
 }
 
+/** Writes: a session, an IPL origin with the CSRF token, the per-IP limit, then the identity's deny-list and caps. */
 async function writeSession(c: AppContext, settings: Settings): Promise<Session> {
   const session = await requireSession(c);
   assertWriteAllowed(c, session, settings.allowedOrigins);
+  await assertIpAllowed(c);
+  await assertContributionAllowed(c, session.identity);
   return session;
 }
 
@@ -100,7 +107,7 @@ export function contributionRoutes(deps: ContributionDeps = {}) {
   routes.post('/edits', async (c) => {
     const settings = loadSettings(c.env);
     const session = await writeSession(c, settings);
-    const body = await readJsonObject(c.req.raw);
+    const body = await readJsonObject(c.req.raw, MAX_EDIT_BODY);
     strictKeys(body, ['url', 'content', 'sha', 'summary']);
     const { url, content, sha, summary } = body;
     const invalid = [
@@ -140,6 +147,7 @@ export function contributionRoutes(deps: ContributionDeps = {}) {
         body: renderPullRequestBody({ kind: 'edit', identity, pageUrl, path: current.path, summary: summary as string, containsHtml: scan.containsHtml }),
         labels: contributionLabels({ kind: 'edit', lang: page.lang, containsHtml: scan.containsHtml }),
       });
+      await recordContribution(c.env.CONTRIBUTE_KV, identity, `${repoName(page.repository)}#${pullRequest.number}`);
       return c.json({ pullRequest }, 201);
     } catch (error) {
       // The default branch moved between our read and the commit.
@@ -153,7 +161,7 @@ export function contributionRoutes(deps: ContributionDeps = {}) {
   routes.post('/suggestions', async (c) => {
     const settings = loadSettings(c.env);
     const session = await writeSession(c, settings);
-    const suggestion = parseSuggestion(await readJsonObject(c.req.raw));
+    const suggestion = parseSuggestion(await readJsonObject(c.req.raw, MAX_SUGGESTION_BODY));
     const website = settings.repositories.website;
     if (!website) throw new AppError('NOT_CONFIGURED', 'No website repository is configured.');
 
@@ -184,6 +192,7 @@ export function contributionRoutes(deps: ContributionDeps = {}) {
       }),
       labels: contributionLabels({ kind: 'suggestion', lang: suggestion.lang, topic: topic.categorySegment }),
     });
+    await recordContribution(c.env.CONTRIBUTE_KV, identity, `${repoName(website)}#${pullRequest.number}`);
     return c.json({ pullRequest }, 201);
   });
 

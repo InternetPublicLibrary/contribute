@@ -11,6 +11,11 @@ export interface Env {
   ORCID_ENVIRONMENT?: string;
   /** "on" enables the anonymous upstream entry route outside production (var; never on in production). */
   LEGACY_ENTRY_ROUTE?: string;
+  /** Per-identity caps (vars; defaults 20 a day and 5 open). */
+  MAX_PRS_PER_DAY?: string;
+  MAX_OPEN_PRS?: string;
+  /** Workers Rate Limiting binding: coarse per-IP limit on sign-in starts and writes (staging, production). */
+  IP_RATE_LIMITER?: RateLimit;
   /** GitHub App id (var). */
   GITHUB_APP_ID?: string;
   /** Secret configured on the GitHub App webhook (secret). */

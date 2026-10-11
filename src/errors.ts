@@ -80,15 +80,22 @@ export function handleNotFound(c: Context): Response {
   return errorResponse(c, new AppError('NOT_FOUND', `No route for ${c.req.method} ${new URL(c.req.url).pathname}.`));
 }
 
-/** Parse a JSON body; malformed or non-object JSON is a 400, never a 500. */
-export async function readJsonObject(request: Request): Promise<Record<string, unknown>> {
+/** Default request body limit (issue #6); routes may pass a smaller or larger one. */
+export const MAX_BODY_BYTES = 256 * 1024;
+
+/** Parse a JSON body; too large is a 413, malformed or non-object JSON a 400, never a 500. */
+export async function readJsonObject(request: Request, maxBytes = MAX_BODY_BYTES): Promise<Record<string, unknown>> {
   const type = request.headers.get('content-type') ?? '';
   if (!type.toLowerCase().startsWith('application/json')) {
     throw new AppError('UNSUPPORTED_MEDIA_TYPE', 'Send the body as application/json.');
   }
+  const tooLarge = () => new AppError('PAYLOAD_TOO_LARGE', `The request body is larger than ${Math.round(maxBytes / 1024)} KB.`);
+  if (Number(request.headers.get('content-length') ?? 0) > maxBytes) throw tooLarge();
+  const bytes = new Uint8Array(await request.arrayBuffer());
+  if (bytes.length > maxBytes) throw tooLarge();
   let value: unknown;
   try {
-    value = await request.json();
+    value = JSON.parse(new TextDecoder().decode(bytes));
   } catch {
     throw new AppError('INVALID_JSON', 'The request body is not valid JSON.');
   }

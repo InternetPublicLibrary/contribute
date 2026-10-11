@@ -2,6 +2,7 @@ import { type Context, Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { loadSettings } from '../config/environment';
 import type { Env } from '../env';
+import { assertIpAllowed } from '../contrib/limits';
 import { AppError, log } from '../errors';
 import { PROVIDERS, type ProviderId } from './identity';
 import { codeChallenge, randomToken } from './pkce';
@@ -42,6 +43,7 @@ export function authRoutes(fetcher: typeof fetch = (input, init) => fetch(input,
   );
 
   routes.get('/auth/:provider/start', async (c) => {
+    await assertIpAllowed(c);
     const settings = loadSettings(c.env);
     const provider = providerFor(c.req.param('provider'), { env: c.env, settings, fetch: fetcher });
     const state = randomToken();

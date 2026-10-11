@@ -2,6 +2,7 @@ import { loadSettings } from './config/environment';
 import { AppError, log } from './errors';
 import { gitHubAppFromEnv } from './github/client';
 import { deleteBranch } from './github/repository';
+import { releaseContribution } from './contrib/limits';
 import type { WebhookHandler } from './webhook';
 
 /** Branches created by the service; nothing else is ever deleted. */
@@ -11,6 +12,7 @@ interface PullRequestPayload {
   action?: string;
   pull_request?: {
     number?: number;
+    body?: string | null;
     head?: { ref?: string; repo?: { full_name?: string } | null };
     base?: { repo?: { full_name?: string } };
   };
@@ -25,6 +27,9 @@ export function branchCleanup(fetcher?: typeof fetch): WebhookHandler {
   return async (delivery, c) => {
     const { action, pull_request: pull } = delivery.payload as PullRequestPayload;
     if (action !== 'closed' || !pull) return { status: 'ignored', reason: 'not a closed pull request' };
+    // Free the contributor's open-PR slot (issue #6), whatever happens to the branch.
+    const baseName = pull.base?.repo?.full_name ?? '';
+    if (baseName && pull.number) await releaseContribution(c.env.CONTRIBUTE_KV, pull.body, `${baseName}#${pull.number}`);
 
     const ref = pull.head?.ref ?? '';
     const head = pull.head?.repo?.full_name ?? '';

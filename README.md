@@ -56,6 +56,17 @@ Defined in [spec 003](docs/specs/003-edits-and-suggestions/spec.md) — the cont
   *Pull requests: write* permission, already in the [manifest](docs/github/app-manifest.json).
 - **Body:** see spec 003, "Pull request body".
 
+## Abuse limits
+
+Writes need a signed-in session, an IPL origin and the CSRF token. Before any GitHub call, each identity is checked
+against a deny-list and two caps (20 contributions a day, 5 open at once → `429` with `Retry-After`); bodies are capped
+(edits 272 KB, suggestions 16 KB → `413`); a per-IP limit protects sign-in and writes. The open-PR slot is freed by the
+webhook when the pull request closes. To block an account (maintainers):
+
+```bash
+npx wrangler kv key put --binding CONTRIBUTE_KV --env production "deny:github:<numeric id>" "reason"   # or deny:orcid:<iD>
+```
+
 ## Development
 
 Node.js 22+ and npm.
@@ -77,6 +88,8 @@ CI runs the same `lint`, `typecheck` and `test` scripts on every pull request.
 | `IPL_ALLOWED_ORIGINS` | var | Exact `https` origins of the IPL site (comma-separated); `http://localhost` only in development |
 | `CONTENT_REPOSITORIES` | var | JSON map role → `owner/repo` (`en-US`, `pt-BR`, `website`) |
 | `ORCID_ENVIRONMENT` | var | `sandbox` (default outside production) or `production` |
+| `MAX_PRS_PER_DAY`, `MAX_OPEN_PRS` | vars | Per-identity caps (defaults 20 a day, 5 open at once) |
+| `IP_RATE_LIMITER` | rate-limit binding | Coarse per-IP limit (30/min) on sign-in starts and writes; staging and production |
 | `GITHUB_APP_ID` | var | Id of the IPL GitHub App |
 | `GITHUB_APP_PRIVATE_KEY` | secret | The App's private key in **PKCS#8** PEM |
 | `GITHUB_OAUTH_CLIENT_ID`, `GITHUB_OAUTH_CLIENT_SECRET` | secrets | GitHub **OAuth App** for sign-in only (scope `read:user`); callback `https://<service>/v1/auth/github/callback` |
