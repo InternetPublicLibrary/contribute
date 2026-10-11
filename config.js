@@ -38,13 +38,13 @@ const schema = {
     domain: {
       doc: 'Domain to be used with Mailgun for email notifications. Will be overridden by a `notifications.domain` parameter in the site config, if one is set.',
       format: String,
-      default: 'staticman.net',
+      default: 'ipl.better-web.org',
       env: 'EMAIL_DOMAIN'
     },
     fromAddress: {
       doc: 'Email address to send notifications from. Will be overridden by a `notifications.fromAddress` parameter in the site config, if one is set.',
       format: String,
-      default: 'noreply@staticman.net',
+      default: 'noreply@ipl.better-web.org',
       env: 'EMAIL_FROM'
     }
   },

@@ -163,7 +163,7 @@ Here's a new entry for your approval. :tada:
 
 Merge the pull request to accept it, or close it to send it away.
 
-:heart: Your friend [Staticman](https://staticman.net) :muscle:
+:heart: Your friend [IPL contribute](https://github.com/InternetPublicLibrary/contribute) :muscle:
 
 ---
 | Field   | Content                          |
@@ -183,7 +183,7 @@ Here's a new entry for your approval. :tada:
 
 Merge the pull request to accept it, or close it to send it away.
 
-:heart: Your friend [Staticman](https://staticman.net) :muscle:
+:heart: Your friend [IPL contribute](https://github.com/InternetPublicLibrary/contribute) :muscle:
 
 ---
 | Field   | Content                          |

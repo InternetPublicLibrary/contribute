@@ -10,4 +10,4 @@ Your contributions to Staticman are more than welcome! Here are a few things to 
 
 1. All pull requests should be sent against the `dev` branch, not `master`.
 
-1. Any pull requests merged to `dev` will automatically be merged to the preview instance, running at `https://dev.staticman.net`. This works as our QA environment to ensure features work as expected before releasing them to the public API.
+1. Any pull requests merged to `dev` will automatically be merged to the preview instance, running at the upstream preview instance (no longer run). This works as our QA environment to ensure features work as expected before releasing them to the public API.

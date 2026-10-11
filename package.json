@@ -18,7 +18,8 @@
     "test:watch": "vitest",
     "check": "npm run lint && npm run typecheck && npm test",
     "types": "wrangler types --env-interface CloudflareBindings src/worker-configuration.d.ts",
-    "bundle:check": "wrangler deploy --dry-run --outdir dist && node scripts/check-bundle.mjs dist"
+    "bundle:check": "wrangler deploy --dry-run --outdir dist && node scripts/check-bundle.mjs dist",
+    "check:links": "sh scripts/check-no-upstream-domain.sh"
   },
   "repository": {
     "type": "git",

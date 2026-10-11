@@ -64,7 +64,10 @@ describe('legacy entry route', () => {
     expect(body.branch).toMatch(/^contribute\//);
     expect(body.message).toBe('Add comment by Ana');
     expect(load(base64ToUtf8(body.content))).toMatchObject({ name: 'Ana', message: 'Olá, IPL!', date: expect.any(String), _id: expect.any(String) });
-    expect(fake.calls.find((call) => call.path.endsWith('/pulls'))?.body).toMatchObject({ base: 'main', head: body.branch });
+    const pull = fake.calls.find((call) => call.path.endsWith('/pulls'))?.body as { base: string; head: string; body: string };
+    expect(pull).toMatchObject({ base: 'main', head: body.branch });
+    // Issue #21: no external links in the generated body.
+    expect(pull.body).not.toMatch(/https?:\/\//);
   });
 
   it('accepts JSON bodies', async () => {
