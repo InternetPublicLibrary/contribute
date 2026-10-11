@@ -7,9 +7,7 @@ import { PROVIDERS, type ProviderId } from './identity';
 import { codeChallenge, randomToken } from './pkce';
 import { providerFor } from './providers';
 import { resolveReturnUrl } from './return-url';
-import { assertWriteAllowed, createSession, destroySession, readSession, requireSession } from './session';
-
-const STATE_TTL_S = 10 * 60;
+import { assertWriteAllowed, consumeStateCookie, createSession, destroySession, readSession, requireSession, setStateCookie, STATE_TTL_S } from './session';
 
 interface PendingSignIn {
   provider: ProviderId;
@@ -50,6 +48,7 @@ export function authRoutes(fetcher: typeof fetch = (input, init) => fetch(input,
     const verifier = randomToken();
     const pending: PendingSignIn = { provider: provider.id, verifier, returnTo: resolveReturnUrl(c.req.query('return_to'), settings.allowedOrigins) };
     await c.env.CONTRIBUTE_KV.put(`oauth:${state}`, JSON.stringify(pending), { expirationTtl: STATE_TTL_S });
+    setStateCookie(c, state);
     return c.redirect(provider.authorizeUrl({ state, codeChallenge: await codeChallenge(verifier), redirectUri: redirectUri(c, provider.id) }), 302);
   });
 
@@ -64,7 +63,9 @@ export function authRoutes(fetcher: typeof fetch = (input, init) => fetch(input,
     const pending = await c.env.CONTRIBUTE_KV.get<PendingSignIn>(key, 'json');
     // Single use: the state is consumed before anything else can fail.
     await c.env.CONTRIBUTE_KV.delete(key);
-    if (!pending || pending.provider !== providerId) {
+    // Login CSRF: a callback URL started in another browser (e.g. an attacker's own sign-in) is refused.
+    const startedHere = consumeStateCookie(c, state);
+    if (!pending || pending.provider !== providerId || !startedHere) {
       throw new AppError('BAD_REQUEST', 'The sign-in link is invalid or has expired. Please sign in again.');
     }
 

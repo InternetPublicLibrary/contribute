@@ -19,9 +19,12 @@ src/auth/
 ## Contracts
 
 - `GET /v1/auth/:provider/start?return_to=<IPL URL>` → 302 to the provider. `return_to` passes through
-  `resolveReturnUrl`; the result is stored with `state` and the PKCE verifier in KV (`oauth:<state>`, 10 min, single use).
-- `GET /v1/auth/:provider/callback?code&state` → exchanges the code with the verifier, reads the profile, discards the
-  provider token, creates `session:<id>` (7 days) and redirects **only** to the stored `return_to`.
+  `resolveReturnUrl`; the result is stored with `state` and the PKCE verifier in KV (`oauth:<state>`, 10 min, single use),
+  and `state` is also set in a `__Host-ipl_contribute_state` cookie: the callback must come from the same browser
+  (login-CSRF protection).
+- `GET /v1/auth/:provider/callback?code&state` → checks the state against KV **and** the state cookie, exchanges the code
+  with the verifier, reads the profile, discards the provider token, deletes any previous session of this browser,
+  creates `session:<id>` (7 days) and redirects **only** to the stored `return_to`.
 - `GET /v1/session` → `{ identity: { provider, id, name, profileUrl }, csrfToken }` or 401.
 - `POST /v1/auth/logout` (header `X-CSRF-Token`) → deletes the KV record and the cookie.
 - Cookie `__Host-ipl_contribute` (`HttpOnly; Secure; SameSite=Lax; Path=/`), random 256-bit id.

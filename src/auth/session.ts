@@ -8,6 +8,9 @@ import { randomToken } from './pkce';
 /** `__Host-` pins the cookie to this host, Secure and Path=/ (no Domain attribute can widen it). */
 export const SESSION_COOKIE = '__Host-ipl_contribute';
 export const SESSION_TTL_S = 7 * 24 * 60 * 60;
+/** Binds a sign-in attempt to the browser that started it (login-CSRF protection). */
+export const STATE_COOKIE = '__Host-ipl_contribute_state';
+export const STATE_TTL_S = 10 * 60;
 
 export interface Session {
   identity: Identity;
@@ -19,6 +22,9 @@ type AppContext = Context<{ Bindings: Env }>;
 const sessionKey = (id: string) => `session:${id}`;
 
 export async function createSession(c: AppContext, identity: Identity): Promise<Session> {
+  // Never reuse an existing session id (fixation): drop whatever this browser had before.
+  const previous = getCookie(c, SESSION_COOKIE);
+  if (previous) await c.env.CONTRIBUTE_KV.delete(sessionKey(previous));
   const id = randomToken();
   const session: Session = { identity, csrfToken: randomToken(), createdAt: new Date().toISOString() };
   await c.env.CONTRIBUTE_KV.put(sessionKey(id), JSON.stringify(session), { expirationTtl: SESSION_TTL_S });
@@ -55,7 +61,18 @@ export function assertWriteAllowed(c: AppContext, session: Session, allowedOrigi
   if (!timingSafeEqual(token, session.csrfToken)) throw new AppError('FORBIDDEN', 'The CSRF token is missing or invalid.');
 }
 
-function timingSafeEqual(a: string, b: string): boolean {
+export function setStateCookie(c: AppContext, state: string): void {
+  setCookie(c, STATE_COOKIE, state, { httpOnly: true, secure: true, sameSite: 'Lax', path: '/', maxAge: STATE_TTL_S });
+}
+
+/** The callback's `state` must be the one this browser received at start; the cookie is consumed either way. */
+export function consumeStateCookie(c: AppContext, state: string): boolean {
+  const expected = getCookie(c, STATE_COOKIE) ?? '';
+  deleteCookie(c, STATE_COOKIE, { httpOnly: true, secure: true, sameSite: 'Lax', path: '/' });
+  return expected !== '' && timingSafeEqual(expected, state);
+}
+
+export function timingSafeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
   let difference = 0;
   for (let index = 0; index < a.length; index += 1) difference |= a.charCodeAt(index) ^ b.charCodeAt(index);
