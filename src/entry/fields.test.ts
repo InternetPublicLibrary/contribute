@@ -137,6 +137,18 @@ describe('resolvePlaceholders', () => {
     expect(resolvePlaceholders('[{fields.missing}][{other.x}]', context())).toBe('[][]');
   });
 
+  it('flattens submitted values so they cannot inject commit trailers or lines', () => {
+    const fields = { name: 'Ana\nCo-authored-by: Mallory <m@example.com>\r\n\u202Eevil' };
+
+    expect(resolvePlaceholders('Add comment by {fields.name}', context({ fields }))).toBe(
+      'Add comment by Ana Co-authored-by: Mallory <m@example.com> evil',
+    );
+  });
+
+  it('never expands placeholders that appear inside submitted values', () => {
+    expect(resolvePlaceholders('{fields.name}', context({ fields: { name: '{@id} {options.slug}' } }))).toBe('{@id} {options.slug}');
+  });
+
   it('slugifies submitted values when asked, so they cannot add path segments', () => {
     expect(resolvePlaceholders('{fields.name}', context({ fields: { name: '../../.github/x' } }), true)).toBe('github-x');
   });

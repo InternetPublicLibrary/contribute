@@ -1,7 +1,7 @@
 import { dump } from 'js-yaml';
 import type { PropertyConfig } from '../config/repository-config';
 import { AppError } from '../errors';
-import { formatDate, slugify } from '../text';
+import { formatDate, singleLine, slugify } from '../text';
 
 export type FieldValue = string | number | boolean;
 export type Fields = Record<string, FieldValue>;
@@ -88,7 +88,9 @@ export interface PlaceholderContext {
 
 /**
  * Resolve `{fields.x}`, `{options.x}`, `{@id}`, `{@timestamp}` and `{@date:FORMAT}`.
- * `slugValues` slugifies values that come from the submission, so they can never add `/` or `..` to a path.
+ * Values that come from the submission are always flattened to one line (no CR/LF, control or bidi characters),
+ * so they cannot inject lines or trailers into a commit message; with `slugValues` they are also slugified, so they
+ * can never add `/` or `..` to a path. Resolution is single-pass: `{…}` inside a value is never expanded.
  */
 export function resolvePlaceholders(template: string, context: PlaceholderContext, slugValues = false): string {
   return template.replace(/\{([^{}]*)\}/g, (_match, property: string) => {
@@ -99,7 +101,7 @@ export function resolvePlaceholders(template: string, context: PlaceholderContex
     const [scope, key] = property.split(/\.(.*)/s, 2) as [string, string | undefined];
     const source = scope === 'fields' ? context.fields : scope === 'options' ? context.options : undefined;
     const value = source && key !== undefined && Object.hasOwn(source, key) ? String(source[key]) : '';
-    return slugValues ? slugify(value) : value;
+    return slugValues ? slugify(value) : singleLine(value);
   });
 }
 

@@ -11,6 +11,19 @@ export function slugify(value: string): string {
     .replace(/^-+|-+$/g, '');
 }
 
+/**
+ * Make submitted text safe inside a single line we generate (commit messages, titles): removes control and bidi
+ * characters (so CR/LF cannot start a new line or a `Co-authored-by:` trailer), collapses whitespace and caps length.
+ */
+export function singleLine(value: string, maxLength = 200): string {
+  const cleaned = value
+    .normalize('NFC')
+    .replace(/[\p{Cc}\p{Cf}\u2028\u2029]+/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return cleaned.length > maxLength ? `${cleaned.slice(0, maxLength - 1)}…` : cleaned;
+}
+
 const pad = (value: number, length = 2) => String(value).padStart(length, '0');
 
 /**
