@@ -4,7 +4,7 @@ import { assertWriteAllowed, requireSession, type Session } from '../auth/sessio
 import { loadSettings, type Settings } from '../config/environment';
 import type { Env } from '../env';
 import { AppError, readJsonObject } from '../errors';
-import { assertContributionAllowed, assertIpAllowed, recordContribution } from './limits';
+import { assertIpAllowed, countLinkCheck, recordContribution, type Reservation, reserveContribution } from './limits';
 import { type GitHubApp, gitHubAppFromEnv, type RepositoryRef } from '../github/client';
 import { proposeChange } from '../github/pull-requests';
 import { defaultBranch, readFile, type RepositoryFile } from '../github/repository';
@@ -70,12 +70,21 @@ export function matchLineEndings(original: string, proposed: string): string {
 }
 
 /** Writes: a session, an IPL origin with the CSRF token, the per-IP limit, then the identity's deny-list and caps. */
-async function writeSession(c: AppContext, settings: Settings): Promise<Session> {
+async function writeSession(c: AppContext, settings: Settings): Promise<{ session: Session; reservation: Reservation }> {
   const session = await requireSession(c);
   assertWriteAllowed(c, session, settings.allowedOrigins);
   await assertIpAllowed(c);
-  await assertContributionAllowed(c, session.identity);
-  return session;
+  return { session, reservation: await reserveContribution(c, session.identity) };
+}
+
+/** Run a write; if it fails before a pull request exists, the reserved daily slot is given back. */
+async function withReservation<T>(reservation: Reservation, work: () => Promise<T>): Promise<T> {
+  try {
+    return await work();
+  } catch (error) {
+    await reservation.rollback();
+    throw error;
+  }
 }
 
 export function contributionRoutes(deps: ContributionDeps = {}) {
@@ -106,94 +115,100 @@ export function contributionRoutes(deps: ContributionDeps = {}) {
 
   routes.post('/edits', async (c) => {
     const settings = loadSettings(c.env);
-    const session = await writeSession(c, settings);
-    const body = await readJsonObject(c.req.raw, MAX_EDIT_BODY);
-    strictKeys(body, ['url', 'content', 'sha', 'summary']);
-    const { url, content, sha, summary } = body;
-    const invalid = [
-      typeof url !== 'string' && 'url',
-      (typeof content !== 'string' || content === '') && 'content',
-      (typeof sha !== 'string' || !SHA.test(sha)) && 'sha',
-      (typeof summary !== 'string' || summary.trim() === '') && 'summary',
-    ].filter((field): field is string => Boolean(field));
-    if (invalid.length) throw new AppError('VALIDATION_FAILED', 'Some fields are missing or invalid.', { fields: invalid });
-    if (new TextEncoder().encode(content as string).length > MAX_EDIT_BYTES) throw new AppError('PAYLOAD_TOO_LARGE', 'The page is too large to edit here.');
+    const { session, reservation } = await writeSession(c, settings);
+    return withReservation(reservation, async () => {
+      const body = await readJsonObject(c.req.raw, MAX_EDIT_BODY);
+      strictKeys(body, ['url', 'content', 'sha', 'summary']);
+      const { url, content, sha, summary } = body;
+      const invalid = [
+        typeof url !== 'string' && 'url',
+        (typeof content !== 'string' || content === '') && 'content',
+        (typeof sha !== 'string' || !SHA.test(sha)) && 'sha',
+        (typeof summary !== 'string' || summary.trim() === '') && 'summary',
+      ].filter((field): field is string => Boolean(field));
+      if (invalid.length) throw new AppError('VALIDATION_FAILED', 'Some fields are missing or invalid.', { fields: invalid });
+      if (new TextEncoder().encode(content as string).length > MAX_EDIT_BYTES) throw new AppError('PAYLOAD_TOO_LARGE', 'The page is too large to edit here.');
 
-    const page = pageSource(url, settings);
-    const app = github(c);
-    const { file: current, branch } = await findSource(app, c.env.CONTRIBUTE_KV, page);
-    if (!current) throw await missingSource(app, c.env.CONTRIBUTE_KV, settings, page);
-    // Optimistic concurrency: the reader edited the version with this sha; anything newer wins and is returned.
-    if (current.sha !== sha) {
-      throw new AppError('STALE_SHA', 'The page changed while you were editing it.', { content: current.content, sha: current.sha });
-    }
-
-    const proposed = matchLineEndings(current.content, content as string);
-    if (proposed === current.content) throw new AppError('VALIDATION_FAILED', 'The edit does not change the page.', { fields: ['content'] });
-    const scan = scanPageEdit(current.content, proposed, current.path.endsWith('.md') ? 'markdown' : 'html');
-
-    const identity = session.identity;
-    const pageUrl = `${new URL(url as string).origin}${page.pagePath}`;
-    try {
-      const pullRequest = await proposeChange(app, {
-        repository: page.repository,
-        base: branch,
-        branch: contributionBranch(newContributionId()),
-        path: current.path,
-        content: proposed,
-        sha: current.sha,
-        message: commitMessage(`Edit ${current.path}`, identity),
-        title: pullRequestTitle('edit', pageTitle(current.content, current.path)),
-        body: renderPullRequestBody({ kind: 'edit', identity, pageUrl, path: current.path, summary: summary as string, containsHtml: scan.containsHtml }),
-        labels: contributionLabels({ kind: 'edit', lang: page.lang, containsHtml: scan.containsHtml }),
-      });
-      await recordContribution(c.env.CONTRIBUTE_KV, identity, `${repoName(page.repository)}#${pullRequest.number}`);
-      return c.json({ pullRequest }, 201);
-    } catch (error) {
-      // The default branch moved between our read and the commit.
-      if (error instanceof AppError && error.details?.githubStatus === 409) {
-        throw new AppError('STALE_SHA', 'The page changed while you were editing it. Reload and try again.');
+      const page = pageSource(url, settings);
+      const app = github(c);
+      const { file: current, branch } = await findSource(app, c.env.CONTRIBUTE_KV, page);
+      if (!current) throw await missingSource(app, c.env.CONTRIBUTE_KV, settings, page);
+      // Optimistic concurrency: the reader edited the version with this sha; anything newer wins and is returned.
+      if (current.sha !== sha) {
+        throw new AppError('STALE_SHA', 'The page changed while you were editing it.', { content: current.content, sha: current.sha });
       }
-      throw error;
-    }
+
+      const proposed = matchLineEndings(current.content, content as string);
+      if (proposed === current.content) throw new AppError('VALIDATION_FAILED', 'The edit does not change the page.', { fields: ['content'] });
+      const scan = scanPageEdit(current.content, proposed, current.path.endsWith('.md') ? 'markdown' : 'html');
+
+      const identity = session.identity;
+      const pageUrl = `${new URL(url as string).origin}${page.pagePath}`;
+      try {
+        const pullRequest = await proposeChange(app, {
+          repository: page.repository,
+          base: branch,
+          branch: contributionBranch(newContributionId()),
+          path: current.path,
+          content: proposed,
+          sha: current.sha,
+          message: commitMessage(`Edit ${current.path}`, identity),
+          title: pullRequestTitle('edit', pageTitle(current.content, current.path)),
+          body: renderPullRequestBody({ kind: 'edit', identity, pageUrl, path: current.path, summary: summary as string, containsHtml: scan.containsHtml }),
+          labels: contributionLabels({ kind: 'edit', lang: page.lang, containsHtml: scan.containsHtml }),
+        });
+        await recordContribution(c.env.CONTRIBUTE_KV, identity, `${repoName(page.repository)}#${pullRequest.number}`);
+        return c.json({ pullRequest }, 201);
+      } catch (error) {
+        // The default branch moved between our read and the commit.
+        if (error instanceof AppError && error.details?.githubStatus === 409) {
+          const { file: latest } = await findSource(app, c.env.CONTRIBUTE_KV, page);
+          throw new AppError('STALE_SHA', 'The page changed while you were editing it.', latest ? { content: latest.content, sha: latest.sha } : undefined);
+        }
+        throw error;
+      }
+    });
   });
 
   routes.post('/suggestions', async (c) => {
     const settings = loadSettings(c.env);
-    const session = await writeSession(c, settings);
-    const suggestion = parseSuggestion(await readJsonObject(c.req.raw, MAX_SUGGESTION_BODY));
-    const website = settings.repositories.website;
-    if (!website) throw new AppError('NOT_CONFIGURED', 'No website repository is configured.');
+    const { session, reservation } = await writeSession(c, settings);
+    return withReservation(reservation, async () => {
+      const suggestion = parseSuggestion(await readJsonObject(c.req.raw, MAX_SUGGESTION_BODY));
+      const website = settings.repositories.website;
+      if (!website) throw new AppError('NOT_CONFIGURED', 'No website repository is configured.');
 
-    const app = github(c);
-    const topic = resolveTopic(await loadMenu(app, c.env.CONTRIBUTE_KV, website, suggestion.lang), suggestion.lang, suggestion.topicPath);
-    const path = resourceFilePath(topic, suggestion.type);
-    await assertReachable(suggestion.url, probe);
+      const app = github(c);
+      const topic = resolveTopic(await loadMenu(app, c.env.CONTRIBUTE_KV, website, suggestion.lang), suggestion.lang, suggestion.topicPath);
+      const path = resourceFilePath(topic, suggestion.type);
+      await countLinkCheck(c.env.CONTRIBUTE_KV, session.identity);
+      await assertReachable(suggestion.url, probe);
 
-    const branch = await defaultBranch(app, c.env.CONTRIBUTE_KV, website);
-    const existing = await readFile(app, website, path, branch);
-    const content = appendEntry(existing?.content ?? null, toEntry(suggestion));
-    const identity = session.identity;
-    const pullRequest = await proposeChange(app, {
-      repository: website,
-      base: branch,
-      branch: contributionBranch(newContributionId()),
-      path,
-      content,
-      ...(existing ? { sha: existing.sha } : {}),
-      message: commitMessage(`Suggest ${suggestion.name} for ${topic.title}`, identity),
-      title: pullRequestTitle('suggestion', suggestion.name),
-      body: renderPullRequestBody({
-        kind: 'suggestion',
-        identity,
-        pageUrl: `${c.req.header('origin') ?? ''}${topic.path}`,
+      const branch = await defaultBranch(app, c.env.CONTRIBUTE_KV, website);
+      const existing = await readFile(app, website, path, branch);
+      const content = appendEntry(existing?.content ?? null, toEntry(suggestion));
+      const identity = session.identity;
+      const pullRequest = await proposeChange(app, {
+        repository: website,
+        base: branch,
+        branch: contributionBranch(newContributionId()),
         path,
-        fields: { Name: suggestion.name, Link: suggestion.url, Description: suggestion.description, Access: suggestion.access, Organization: suggestion.organization },
-      }),
-      labels: contributionLabels({ kind: 'suggestion', lang: suggestion.lang, topic: topic.categorySegment }),
+        content,
+        ...(existing ? { sha: existing.sha } : {}),
+        message: commitMessage(`Suggest ${suggestion.name} for ${topic.title}`, identity),
+        title: pullRequestTitle('suggestion', suggestion.name),
+        body: renderPullRequestBody({
+          kind: 'suggestion',
+          identity,
+          pageUrl: `${c.req.header('origin') ?? ''}${topic.path}`,
+          path,
+          fields: { Name: suggestion.name, Link: suggestion.url, Description: suggestion.description, Access: suggestion.access, Organization: suggestion.organization },
+        }),
+        labels: contributionLabels({ kind: 'suggestion', lang: suggestion.lang, topic: topic.categorySegment }),
     });
     await recordContribution(c.env.CONTRIBUTE_KV, identity, `${repoName(website)}#${pullRequest.number}`);
     return c.json({ pullRequest }, 201);
+    });
   });
 
   routes.get('/contributions', async (c) => {
@@ -202,16 +217,20 @@ export function contributionRoutes(deps: ContributionDeps = {}) {
     const repositories = Object.values(settings.repositories);
     const first = repositories[0];
     if (!first) return c.json({ contributions: [] });
-    const marker = identityMarker(session.identity).replace(/^<!-- | -->$/g, '');
+    const exact = identityMarker(session.identity);
+    const marker = exact.replace(/^<!-- | -->$/g, '');
     const query = [`"${marker}"`, 'in:body', 'is:pr', ...new Set(repositories.map((r) => `repo:${repoName(r)}`))].join(' ');
-    const result = await github(c).request<{ items: { number: number; title: string; html_url: string; state: string; repository_url: string; pull_request?: { merged_at: string | null } }[] }>(
+    const result = await github(c).request<{ items: { number: number; title: string; body?: string | null; html_url: string; state: string; repository_url: string; pull_request?: { merged_at: string | null } }[] }>(
       first,
       'GET',
       `/search/issues?q=${encodeURIComponent(query)}&sort=created&order=desc&per_page=50`,
       'search contributions',
     );
+    // Search matches words, and reader text can contain the marker's words: keep only bodies whose last line is the
+    // exact marker. Reader text cannot produce it, because '<' is escaped in the body template.
+    const own = result.items.filter((item) => (item.body ?? '').trimEnd().endsWith(exact));
     return c.json({
-      contributions: result.items.map((item) => ({
+      contributions: own.map((item) => ({
         repository: item.repository_url.split('/repos/')[1] ?? '',
         number: item.number,
         title: item.title,

@@ -49,7 +49,7 @@ describe('per-identity limits (before any GitHub call)', () => {
   it('answers a 6th concurrently open contribution with 429', async () => {
     const identity = reader();
     const session = await signedIn(identity);
-    for (let n = 1; n <= 5; n += 1) await recordContribution(env.CONTRIBUTE_KV, identity, `o/r#${n}`, new Date(Date.UTC(2026, 0, 1)));
+    for (let n = 1; n <= 5; n += 1) await recordContribution(env.CONTRIBUTE_KV, identity, `o/r#${n}`);
     const fake = new FakeGitHub();
     const response = await postEdit(app(fake), session.headers);
 

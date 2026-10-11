@@ -1,4 +1,4 @@
-import { singleLine } from '../text';
+import { neutralizeGitHubText, singleLine } from '../text';
 import type { Language } from './topics';
 
 /** Titles and labels of contribution pull requests (issue #9). */
@@ -6,7 +6,7 @@ export const MAX_TITLE = 120;
 
 export function pullRequestTitle(kind: 'edit' | 'suggestion', subject: string): string {
   const prefix = kind === 'edit' ? 'Edit: ' : 'Resource suggestion: ';
-  return singleLine(`${prefix}${singleLine(subject, MAX_TITLE)}`, MAX_TITLE);
+  return singleLine(`${prefix}${neutralizeGitHubText(singleLine(subject, MAX_TITLE))}`, MAX_TITLE);
 }
 
 export interface LabelInput {

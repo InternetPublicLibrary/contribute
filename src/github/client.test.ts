@@ -83,7 +83,7 @@ describe('GitHubApp', () => {
     const repository = freshRepo();
 
     const cold = app(fake);
-    await expect(proposeChange(cold, change(repository))).resolves.toEqual({ number: 7, url: 'https://github.com/InternetPublicLibrary/test/pull/7' });
+    await expect(proposeChange(cold, change(repository))).resolves.toEqual({ number: 7, url: 'https://github.com/InternetPublicLibrary/test/pull/7', labelled: true });
     expect(cold.calls).toBe(6);
 
     const warm = app(fake);

@@ -21,6 +21,8 @@ export interface ProposedChange {
 export interface OpenedPullRequest {
   number: number;
   url: string;
+  /** False when the labels could not be added; the pull request itself is open. */
+  labelled?: boolean;
 }
 
 /**
@@ -39,21 +41,34 @@ export async function proposeChange(github: GitHubApp, change: ProposedChange): 
     ref: `refs/heads/${change.branch}`,
     sha: base.object.sha,
   });
-  await github.request(change.repository, 'PUT', `${repo}/contents/${filePath}`, 'write file', {
-    message: change.message,
-    content: utf8ToBase64(change.content),
-    branch: change.branch,
-    ...(change.sha ? { sha: change.sha } : {}),
-  });
-  const pull = await github.request<{ number: number; html_url: string }>(change.repository, 'POST', `${repo}/pulls`, 'open pull request', {
-    title: change.title,
-    body: change.body,
-    head: change.branch,
-    base: change.base,
-    maintainer_can_modify: true,
-  });
-  if (change.labels?.length) {
-    await github.request(change.repository, 'POST', `${repo}/issues/${pull.number}/labels`, 'add labels', { labels: change.labels });
+  let pull: { number: number; html_url: string };
+  try {
+    await github.request(change.repository, 'PUT', `${repo}/contents/${filePath}`, 'write file', {
+      message: change.message,
+      content: utf8ToBase64(change.content),
+      branch: change.branch,
+      ...(change.sha ? { sha: change.sha } : {}),
+    });
+    pull = await github.request<{ number: number; html_url: string }>(change.repository, 'POST', `${repo}/pulls`, 'open pull request', {
+      title: change.title,
+      body: change.body,
+      head: change.branch,
+      base: change.base,
+      maintainer_can_modify: true,
+    });
+  } catch (error) {
+    // No pull request will point at this branch: remove it (best effort) so no orphan stays behind.
+    await github
+      .request(change.repository, 'DELETE', `${repo}/git/refs/heads/${change.branch.split('/').map(encodeURIComponent).join('/')}`, 'delete branch')
+      .catch(() => undefined);
+    throw error;
   }
-  return { number: pull.number, url: pull.html_url };
+  // The pull request exists from here on: a labelling failure must not turn it into an error (and a retried duplicate).
+  let labelled = true;
+  if (change.labels?.length) {
+    labelled = await github
+      .request(change.repository, 'POST', `${repo}/issues/${pull.number}/labels`, 'add labels', { labels: change.labels })
+      .then(() => true, () => false);
+  }
+  return { number: pull.number, url: pull.html_url, labelled };
 }
