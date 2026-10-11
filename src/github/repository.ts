@@ -46,3 +46,15 @@ export async function readRepositoryConfig(github: GitHubApp, repository: Reposi
     repository: `${repository.owner}/${repository.repo}`,
   });
 }
+
+/** Delete a branch; a branch that is already gone (404, or 422 "Reference does not exist") counts as deleted. */
+export async function deleteBranch(github: GitHubApp, repository: RepositoryRef, branch: string): Promise<'deleted' | 'already-deleted'> {
+  try {
+    await github.request(repository, 'DELETE', `${repoPath(repository)}/git/refs/heads/${branch.split('/').map(encodeURIComponent).join('/')}`, 'delete branch');
+    return 'deleted';
+  } catch (error) {
+    const status = error instanceof AppError ? error.details?.githubStatus : undefined;
+    if (status === 404 || status === 422) return 'already-deleted';
+    throw error;
+  }
+}

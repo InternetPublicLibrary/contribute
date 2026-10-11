@@ -34,8 +34,10 @@ Error body (every route): `{ "error": { "code", "message", "details"? }, "reques
 
 ## Decisions
 
-- Branch cleanup: handled by the webhook **and** "Automatically delete head branches" recommended on content
-  repositories; the handler is idempotent (#14).
+- Branch cleanup (#14): both. Content repositories enable "Automatically delete head branches", and the
+  `pull_request.closed` handler deletes `contribute/*` branches of same-repository PRs in configured repositories.
+  A branch already gone (404 / 422) is success; any other failure is logged and acknowledged with **2xx**, because a
+  GitHub redelivery would repeat the same failure and a leftover branch is harmless.
 - Branches in the content repository, not forks (ADR 0004, #13).
 
 ## Risks
