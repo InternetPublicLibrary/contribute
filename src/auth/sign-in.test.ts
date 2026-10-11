@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import type { Env } from '../env';
 import { handleError } from '../errors';
 import { FakeGitHub } from '../test/fake-github';
+import { codeChallenge } from './pkce';
 import { authRoutes } from './routes';
 import { SESSION_COOKIE } from './session';
 
@@ -18,17 +19,23 @@ const vars: Partial<Env> = {
   ORCID_CLIENT_SECRET: 'orcid-secret',
 };
 
+/** Challenge sent by the latest /start; the fake providers accept only the matching verifier, like real PKCE. */
+let expectedChallenge = '';
+async function pkceOk(body: unknown): Promise<boolean> {
+  const params = new URLSearchParams(String(body));
+  return params.get('code') === 'good' && (await codeChallenge(params.get('code_verifier') ?? '')) === expectedChallenge;
+}
+
 function fakeProviders() {
   return new FakeGitHub()
-    .on('POST', /^\/login\/oauth\/access_token$/, (call) =>
-      Response.json(String(call.body).includes('code=good') ? { access_token: 'gho_user_token', token_type: 'bearer' } : { error: 'bad_verification_code' }),
+    .on('POST', /^\/login\/oauth\/access_token$/, async (call) =>
+      Response.json((await pkceOk(call.body)) ? { access_token: 'gho_user_token', token_type: 'bearer' } : { error: 'bad_verification_code' }),
     )
     .on('GET', /^\/user$/, { id: 583231, login: 'octocat', name: null, html_url: 'https://github.com/octocat' })
-    .on('POST', /^\/oauth\/token$/, (call) =>
-      Response.json(String(call.body).includes('code=good') ? { access_token: 'orcid-token', orcid: '0000-0002-1825-0097', name: '' } : { error: 'invalid_grant' }, {
-        status: String(call.body).includes('code=good') ? 200 : 400,
-      }),
-    )
+    .on('POST', /^\/oauth\/token$/, async (call) => {
+      const ok = await pkceOk(call.body);
+      return Response.json(ok ? { access_token: 'orcid-token', orcid: '0000-0002-1825-0097', name: '' } : { error: 'invalid_grant' }, { status: ok ? 200 : 400 });
+    })
     .on('GET', /^\/v3\.0\/0000-0002-1825-0097\/person$/, { name: { 'credit-name': null, 'given-names': { value: 'Josiah' }, 'family-name': { value: 'Carberry' } } });
 }
 
@@ -56,6 +63,7 @@ const cookieOf = (response: Response) => setCookie(response, SESSION_COOKIE).spl
 async function start(request: ReturnType<typeof setup>['request'], provider: string, returnTo = PAGE) {
   const response = await request(`/v1/auth/${provider}/start?return_to=${encodeURIComponent(returnTo)}`);
   const location = new URL(response.headers.get('location') ?? '');
+  expectedChallenge = location.searchParams.get('code_challenge') ?? '';
   return { response, location, state: location.searchParams.get('state') ?? '', stateCookie: setCookie(response, '__Host-ipl_contribute_state').split(';')[0] ?? '' };
 }
 
@@ -213,6 +221,16 @@ describe('rejected callbacks', () => {
     const { state, stateCookie } = await start(request, 'orcid');
 
     expect((await request(`/v1/auth/github/callback?code=good&state=${state}`, { headers: { cookie: stateCookie } })).status).toBe(400);
+  });
+
+  it('fails when the verifier does not match the challenge the provider received (PKCE)', async () => {
+    const { request } = setup();
+    const first = await start(request, 'github');
+    await start(request, 'github'); // the provider now expects the second sign-in's challenge
+    const callback = await request(`/v1/auth/github/callback?code=good&state=${first.state}`, { headers: { cookie: first.stateCookie } });
+
+    expect(callback.status).toBe(401);
+    expect(cookieOf(callback)).toBe('');
   });
 
   it('rejects a code the provider refuses (e.g. wrong PKCE verifier) with 401 and no session', async () => {

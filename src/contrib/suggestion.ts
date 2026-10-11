@@ -90,8 +90,17 @@ export function toEntry(suggestion: Suggestion): ResourceEntry {
   return entry;
 }
 
-const isPlaceholder = (entry: unknown) =>
-  !!entry && typeof entry === 'object' && typeof (entry as { url?: unknown }).url === 'string' && /example\.com/i.test((entry as { url: string }).url);
+/** Generated placeholders point at example.com itself (or a subdomain); real sites such as counterexample.com do not. */
+function isPlaceholder(entry: unknown): boolean {
+  const url = entry && typeof entry === 'object' ? (entry as { url?: unknown }).url : undefined;
+  if (typeof url !== 'string') return false;
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    return host === 'example.com' || host.endsWith('.example.com');
+  } catch {
+    return false;
+  }
+}
 
 /** Compare URLs without scheme case, host case, default port, trailing slash or fragment. */
 export function canonicalUrl(value: string): string {

@@ -70,7 +70,7 @@ export class GitHubApp {
   }
 
   private async installationId({ owner, repo }: RepositoryRef): Promise<number> {
-    const cacheKey = `gh:installation:${owner}/${repo}`.toLowerCase();
+    const cacheKey = installationCacheKey({ owner, repo });
     const cached = await this.options.kv.get(cacheKey);
     if (cached) return Number(cached);
 
@@ -84,7 +84,7 @@ export class GitHubApp {
     return id;
   }
 
-  private async installationToken(repository: RepositoryRef): Promise<string> {
+  private async installationToken(repository: RepositoryRef, retried = false): Promise<string> {
     const id = await this.installationId(repository);
     const memo = this.tokens.get(id);
     if (memo && memo.expiresAt > this.now()) return memo.token;
@@ -96,6 +96,11 @@ export class GitHubApp {
     }
 
     const response = await this.send('POST', `/app/installations/${id}/access_tokens`, `Bearer ${await this.appJwt()}`);
+    if (response.status === 404 && !retried) {
+      // The App was reinstalled: the cached installation id is stale. Forget it and look it up once more.
+      await this.options.kv.delete(installationCacheKey(repository));
+      return this.installationToken(repository, true);
+    }
     if (!response.ok) throw await gitHubError(response, 'create installation token');
     const { token, expires_at: expiresAtText } = (await response.json()) as { token: string; expires_at: string };
     const expiresAt = Date.parse(expiresAtText);
@@ -107,16 +112,18 @@ export class GitHubApp {
     return token;
   }
 
+  /** A revoked token: forget it so the next request mints a new one. */
+  private async forgetToken(repository: RepositoryRef): Promise<void> {
+    const id = await this.installationId(repository);
+    this.tokens.delete(id);
+    await this.options.kv.delete(`gh:token:${id}`);
+  }
+
   /** Call the REST API for one repository as the installation; non-2xx responses become AppErrors. */
   async request<T>(repository: RepositoryRef, method: string, path: string, operation: string, body?: unknown): Promise<T> {
     const token = await this.installationToken(repository);
     const response = await this.send(method, path, `Bearer ${token}`, body);
-    if (response.status === 401) {
-      // A revoked token: forget it so the next request mints a new one.
-      const id = await this.installationId(repository);
-      this.tokens.delete(id);
-      await this.options.kv.delete(`gh:token:${id}`);
-    }
+    if (response.status === 401) await this.forgetToken(repository);
     if (!response.ok) throw await gitHubError(response, operation);
     return response.status === 204 ? (undefined as T) : ((await response.json()) as T);
   }
@@ -126,6 +133,7 @@ export class GitHubApp {
     const token = await this.installationToken(repository);
     const response = await this.send(method, path, `Bearer ${token}`);
     if (response.status === 404) return null;
+    if (response.status === 401) await this.forgetToken(repository);
     if (!response.ok) throw await gitHubError(response, operation);
     return (await response.json()) as T;
   }
@@ -135,6 +143,8 @@ export class GitHubApp {
 export function gitHubAppFromEnv(env: { CONTRIBUTE_KV: KVNamespace; GITHUB_APP_ID?: string; GITHUB_APP_PRIVATE_KEY?: string }, fetcher?: typeof fetch): GitHubApp {
   return new GitHubApp({ appId: env.GITHUB_APP_ID, privateKey: env.GITHUB_APP_PRIVATE_KEY, kv: env.CONTRIBUTE_KV, ...(fetcher ? { fetch: fetcher } : {}) });
 }
+
+const installationCacheKey = ({ owner, repo }: RepositoryRef) => `gh:installation:${owner}/${repo}`.toLowerCase();
 
 export const repoPath = ({ owner, repo }: RepositoryRef) => `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`;
 

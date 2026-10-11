@@ -85,6 +85,10 @@ type `application/json` and the events `pull_request` and `installation`.
 | staging (`--env staging`) | `ipl-contribute-staging` | `https://staging.ipl.better-web.org` | `contribute-sandbox` | sandbox |
 | production (`--env production`) | `ipl-contribute` | `https://ipl.better-web.org` | `en-US`, `pt-BR`, `IPLibrary-website` | production |
 
+The service must be **same-site** with the IPL pages: the session cookie is `SameSite=Lax`, so a `*.workers.dev`
+address would never receive it from `ipl.better-web.org`. Staging and production therefore run on custom domains of
+the IPL zone (`contribute.staging.ipl.better-web.org`, `contribute.ipl.better-web.org`) with `workers_dev` off.
+
 A development or staging Worker refuses to start work if any configured repository is a production one, and only
 production may use the ORCID production registry. Pull requests always target the repository's **default branch**,
 read from the GitHub API (cached for an hour) — neither requests nor `contribute.yml` choose the branch.

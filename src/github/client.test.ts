@@ -190,3 +190,27 @@ describe('path safety', () => {
     expect(fake.calls).toEqual([]);
   });
 });
+
+describe('stale caches', () => {
+  it('looks the installation up again when the App was reinstalled', async () => {
+    const repository = freshRepo();
+    await env.CONTRIBUTE_KV.put(`gh:installation:${repository.owner}/${repository.repo}`.toLowerCase(), '111');
+    const fake = prRoutes(
+      new FakeGitHub()
+        .on('POST', /^\/app\/installations\/111\/access_tokens$/, new Response('{"message":"Not Found"}', { status: 404 }))
+        .withInstallation(222),
+    );
+
+    await expect(proposeChange(new GitHubApp({ appId: '1', privateKey: pem, kv: env.CONTRIBUTE_KV, fetch: fake.fetch }), change(repository))).resolves.toMatchObject({ number: 7 });
+    expect(fake.calls.find((call) => call.path.endsWith('/pulls'))?.authorization).toBe('Bearer ghs_installation_222');
+  });
+
+  it('forgets a revoked token on reads too', async () => {
+    const repository = freshRepo();
+    const fake = new FakeGitHub().withInstallation(333).on('GET', /\/contents\//, new Response('{"message":"Bad credentials"}', { status: 401 }));
+    const github = new GitHubApp({ appId: '1', privateKey: pem, kv: env.CONTRIBUTE_KV, fetch: fake.fetch });
+
+    await expect(github.requestOrNull(repository, 'GET', '/repos/a/b/contents/x', 'read')).rejects.toMatchObject({ code: 'GITHUB_AUTH' });
+    expect(await env.CONTRIBUTE_KV.get('gh:token:333')).toBeNull();
+  });
+});

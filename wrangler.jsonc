@@ -17,6 +17,9 @@
   "env": {
     "staging": {
       "name": "ipl-contribute-staging",
+      // Same site as the IPL pages, so the SameSite=Lax session cookie is sent with their requests (spec 002).
+      "workers_dev": false,
+      "routes": [{ "pattern": "contribute.staging.ipl.better-web.org", "custom_domain": true }],
       "kv_namespaces": [{ "binding": "CONTRIBUTE_KV", "id": "REPLACE_WITH_STAGING_KV_ID" }],
       "vars": {
         "ENVIRONMENT": "staging",
@@ -27,6 +30,8 @@
     },
     "production": {
       "name": "ipl-contribute",
+      "workers_dev": false,
+      "routes": [{ "pattern": "contribute.ipl.better-web.org", "custom_domain": true }],
       "kv_namespaces": [{ "binding": "CONTRIBUTE_KV", "id": "REPLACE_WITH_PRODUCTION_KV_ID" }],
       "vars": {
         "ENVIRONMENT": "production",
