@@ -42,10 +42,10 @@ Defined in [spec 003](docs/specs/003-edits-and-suggestions/spec.md) — the cont
 | Route | Purpose |
 | --- | --- |
 | `GET /v1/auth/:provider/start?return_to=` · `/callback` · `GET /v1/session` · `POST /v1/auth/logout` | Sign-in with GitHub or ORCID ([spec 002](docs/specs/002-sign-in/spec.md)) — available |
-| `GET /v1/source?url=` | Source file of an IPL page |
-| `POST /v1/edits` | Propose a page edit (opens a PR) |
-| `POST /v1/suggestions` | Suggest a resource for a topic (opens a PR on `_data`) |
-| `GET /v1/contributions` | The signed-in author's pull requests |
+| `GET /v1/source?url=` | Source file of an IPL page (`409 GENERATED_PAGE` for topic pages built from the menu) — available |
+| `POST /v1/edits` | Propose a page edit with the `sha` you read (opens a PR; `409 STALE_SHA` with the current content if the page changed) — available |
+| `POST /v1/suggestions` | Suggest a resource for a topic (link must answer; opens a PR on `_data`) — available |
+| `GET /v1/contributions` | The signed-in author's pull requests — available |
 
 ## Pull requests opened by the service
 
