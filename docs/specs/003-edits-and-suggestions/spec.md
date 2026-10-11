@@ -74,3 +74,28 @@ Implemented in [`src/contrib/safety.ts`](../../../src/contrib/safety.ts); violat
   `contains-html` label. Front matter that decides publication (`permalink`, `layout`, `redirect_from`, `redirect_to`,
   `lang`, `published`) cannot change.
 - Template-side escaping in IPLibrary-website remains required and is tracked there.
+
+## Pull request body (issue #8)
+
+Rendered by [`src/contrib/pr-body.ts`](../../../src/contrib/pr-body.ts) from one template:
+
+```
+### Page edit | ### Resource suggestion
+
+- **Page:** <IPL page URL>
+- **File:** `<repository path>`
+- **Contributor:** <name + profile link (GitHub) | name + ORCID iD link>
+
+**Summary**
+
+> <reader text, quoted line by line>
+
+---
+Opened by IPL contribute for a signed-in reader. Review the diff: merge to publish, close to decline.
+<!-- contribute-identity:<provider>:<id> -->
+```
+
+Reader text is escaped: HTML as entities, Markdown punctuation backslashed, and a word joiner breaks `@mentions`,
+`#123` references, `owner/repo#123`, closing keywords (`close[sd]`, `fix(e[sd])`, `resolve[sd]`), `://` and `www.`. CRLF
+becomes LF. Summaries over 2,000 characters are rejected (422) and the body is never longer than 60,000 characters.
+File content is never copied into the body.
