@@ -69,6 +69,10 @@ CI runs the same `lint`, `typecheck` and `test` scripts on every pull request.
 | `ORCID_ENVIRONMENT` | var | `sandbox` (default outside production) or `production` |
 | `GITHUB_APP_ID` | var | Id of the IPL GitHub App |
 | `GITHUB_APP_PRIVATE_KEY` | secret | The App's private key in **PKCS#8** PEM |
+| `GITHUB_WEBHOOK_SECRET` | secret | The App's webhook secret; `POST /v1/webhook` answers 503 without it and 401 to any delivery whose `X-Hub-Signature-256` does not match |
+
+For local development copy `.dev.vars.example` to `.dev.vars` (git-ignored). Configure the App webhook with content
+type `application/json` and the events `pull_request` and `installation`.
 
 ### Environments
 
