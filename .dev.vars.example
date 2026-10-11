@@ -1,0 +1,4 @@
+# Copy to .dev.vars for `npm run dev`; never commit real values.
+GITHUB_APP_ID=
+GITHUB_APP_PRIVATE_KEY=
+GITHUB_WEBHOOK_SECRET=
