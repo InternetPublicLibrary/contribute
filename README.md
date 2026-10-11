@@ -13,9 +13,9 @@
 
 ---
 
-> **Status:** the Workers service is being built spec by spec in `src/` — see the [roadmap](docs/specs/ROADMAP.md).
-> The upstream Staticman code (`lib/`, `controllers/`, …) stays in the tree for reference until the port reaches parity;
-> it is not part of the Worker.
+> **Status:** the Workers service in `src/` implements specs 001–003 — see the [roadmap](docs/specs/ROADMAP.md). The
+> upstream Staticman code was removed after the port; it remains in the git history and is credited in
+> [NOTICE.md](NOTICE.md).
 
 ## How it works
 

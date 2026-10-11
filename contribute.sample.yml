@@ -1,0 +1,17 @@
+# contribute.yml — rules for the legacy entry route (POST /v3/entry/github/…), read from the default branch of the
+# target repository. The signed-in /v1 API (edits, suggestions) needs no configuration file.
+comments:
+  allowedFields: [name, message]
+  requiredFields: [name, message]
+  format: yaml            # yaml | json | frontmatter
+  path: "_data/comments/{options.slug}"
+  filename: "entry{@timestamp}"
+  commitMessage: "Add comment by {fields.name}"
+  pullRequestBody: "New comment for review."
+  generatedFields:
+    date:
+      type: date
+      options:
+        format: iso8601   # iso8601 | timestamp | timestamp-seconds
+  transforms:
+    name: [downcase]      # upcase | downcase | frontmatterContent
