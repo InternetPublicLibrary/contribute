@@ -131,6 +131,11 @@ export class GitHubApp {
   }
 }
 
+/** The App as configured for this Worker; `fetch` is injectable for tests. */
+export function gitHubAppFromEnv(env: { CONTRIBUTE_KV: KVNamespace; GITHUB_APP_ID?: string; GITHUB_APP_PRIVATE_KEY?: string }, fetcher?: typeof fetch): GitHubApp {
+  return new GitHubApp({ appId: env.GITHUB_APP_ID, privateKey: env.GITHUB_APP_PRIVATE_KEY, kv: env.CONTRIBUTE_KV, ...(fetcher ? { fetch: fetcher } : {}) });
+}
+
 export const repoPath = ({ owner, repo }: RepositoryRef) => `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`;
 
 /**

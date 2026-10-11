@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import type { Env } from './env';
 import { handleError, handleNotFound } from './errors';
+import { branchCleanup } from './branch-cleanup';
 import { webhookRoute } from './webhook';
 
 export const app = new Hono<{ Bindings: Env }>();
@@ -16,6 +17,6 @@ app.get('/', (c) =>
   }),
 );
 
-app.post('/v1/webhook', webhookRoute({}));
+app.post('/v1/webhook', webhookRoute({ pull_request: branchCleanup() }));
 
 export default app;
