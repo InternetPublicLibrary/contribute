@@ -16,7 +16,8 @@ take part with their ORCID iD.
 3. `GET /v1/auth/:provider/start?return_to=<allowed IPL URL>`, `GET /v1/auth/:provider/callback`,
    `GET /v1/session` (JSON identity or 401), `POST /v1/auth/logout`. `return_to` must match an allow-list of
    IPL origins.
-4. CORS limited to IPL origins; CSRF protection on state-changing routes (double-submit token).
+4. CORS limited to IPL origins; CSRF protection on state-changing routes (session-bound token sent as
+   `X-CSRF-Token` plus an allowed `Origin`; see the plan for why not double-submit).
 
 ## Acceptance criteria
 - [ ] Sign-in round trip works for GitHub and ORCID sandbox; `/v1/session` returns the identity.

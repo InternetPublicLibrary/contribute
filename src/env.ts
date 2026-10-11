@@ -15,6 +15,12 @@ export interface Env {
   GITHUB_APP_ID?: string;
   /** Secret configured on the GitHub App webhook (secret). */
   GITHUB_WEBHOOK_SECRET?: string;
+  /** GitHub OAuth App used for sign-in only (secrets). */
+  GITHUB_OAUTH_CLIENT_ID?: string;
+  GITHUB_OAUTH_CLIENT_SECRET?: string;
+  /** ORCID member/public API client for the configured registry (secrets). */
+  ORCID_CLIENT_ID?: string;
+  ORCID_CLIENT_SECRET?: string;
   /** GitHub App private key, PKCS#8 PEM (secret). */
   GITHUB_APP_PRIVATE_KEY?: string;
 }
